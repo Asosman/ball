@@ -720,6 +720,21 @@ export function compareMatchState(prevRecord, currentMatch) {
       }
     }
 
+    if (ev.type === 'GOAL') {
+      const text = (ev.text || ev.description || '').toLowerCase();
+      const typeText = (ev.typeText || '').toLowerCase();
+      if (
+        ev.penaltyKick === true ||
+        typeText.includes('penalty') ||
+        text.includes('penalty') ||
+        text.includes('from the spot') ||
+        text.includes('converts')
+      ) {
+        ev.type = 'PENALTY_SCORED';
+        ev.outcome = 'SCORED';
+      }
+    }
+
     // Strict Whitelist Gate
     if (!isWhitelistedEvent(ev)) {
       continue;
@@ -755,8 +770,9 @@ export function compareMatchState(prevRecord, currentMatch) {
       }
       // Tertiary lookup: by exact (type, period, minute, teamId, occurrence)
       if (!matchedEvent) {
+        const isGoalType = (t) => t === 'GOAL' || t === 'OWN_GOAL' || t === 'PENALTY_SCORED';
         matchedEvent = Object.values(canonicalEvents).find(
-          (e) => (e.type === type || ((type === 'GOAL' || type === 'OWN_GOAL') && (e.type === 'GOAL' || e.type === 'OWN_GOAL'))) &&
+          (e) => (e.type === type || (isGoalType(type) && isGoalType(e.type))) &&
                  e.period === period && e.minute === minute && (!e.teamId || e.teamId === teamId)
         );
       }
@@ -873,6 +889,12 @@ export function compareMatchState(prevRecord, currentMatch) {
       if ((ev.ownGoal || type === 'OWN_GOAL') && !matchedEvent.ownGoal) {
         matchedEvent.ownGoal = true;
         matchedEvent.type = 'OWN_GOAL';
+        contentChanged = true;
+      }
+
+      if ((ev.type === 'PENALTY_SCORED' || type === 'PENALTY_SCORED') && matchedEvent.type === 'GOAL') {
+        matchedEvent.type = 'PENALTY_SCORED';
+        matchedEvent.outcome = 'SCORED';
         contentChanged = true;
       }
 

@@ -180,6 +180,7 @@ export function extractMatchHighlights(match: MatchEventSummary, matchData?: any
           outcome: 'scored',
           teamId: eventTeamId,
         });
+        return;
       }
     }
 
@@ -273,6 +274,36 @@ export function extractMatchHighlights(match: MatchEventSummary, matchData?: any
         const isOwnGoal = cLower.includes('own goal');
 
         if (cScorer) {
+          const isPenalty =
+            c.play?.type?.text?.toLowerCase().includes('penalty') ||
+            cLower.includes('penalty') ||
+            cLower.includes('from the spot') ||
+            cLower.includes('converts');
+
+          if (isPenalty) {
+            const existingPen = penaltiesScored.find(
+              (p) =>
+                (p.player && cScorer && (p.player.toLowerCase().includes(cScorer.toLowerCase()) || cScorer.toLowerCase().includes(p.player.toLowerCase()))) ||
+                (p.minute && cClock && p.minute === cClock)
+            );
+            if (!existingPen) {
+              penaltiesScored.push({
+                player: cScorer || null,
+                minute: cClock,
+                outcome: 'scored',
+              });
+            }
+            const goalIdx = goals.findIndex(
+              (g) =>
+                (g.scorer && cScorer && (g.scorer.toLowerCase().includes(cScorer.toLowerCase()) || cScorer.toLowerCase().includes(g.scorer.toLowerCase()))) ||
+                (g.minute && cClock && g.minute === cClock)
+            );
+            if (goalIdx !== -1) {
+              goals.splice(goalIdx, 1);
+            }
+            continue;
+          }
+
           // Find if we already have this goal in goals list
           const existingGoal = goals.find((g) => {
             if (
@@ -353,6 +384,21 @@ export function extractMatchHighlights(match: MatchEventSummary, matchData?: any
     isHalftime,
     isSecondHalf,
   };
+
+  // Deduplicate: If an event is in penaltiesScored, ensure it does not also appear in goals
+  for (const pen of penaltiesScored) {
+    const idx = goals.findIndex((g) => {
+      const sameMinute = Boolean(g.minute && pen.minute && g.minute === pen.minute);
+      const samePlayer = Boolean(
+        g.scorer && pen.player &&
+        (g.scorer.toLowerCase().includes(pen.player.toLowerCase()) || pen.player.toLowerCase().includes(g.scorer.toLowerCase()))
+      );
+      return sameMinute || samePlayer;
+    });
+    if (idx !== -1) {
+      goals.splice(idx, 1);
+    }
+  }
 
   return {
     goals,

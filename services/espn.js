@@ -645,6 +645,37 @@ function _normalizeEvent(item, matchContext = {}) {
       lowerText.includes('no goal') ||
       typeText.includes('disallowed');
 
+    const isPenaltyKick =
+      item.penaltyKick === true ||
+      typeText.includes('penalty') ||
+      lowerText.includes('penalty') ||
+      lowerText.includes('from the spot');
+
+    const isPenaltyScored =
+      isPenaltyKick &&
+      !isDisallowed &&
+      !isOwnGoal &&
+      (
+        lowerText.includes('scores') ||
+        lowerText.includes('converted') ||
+        lowerText.includes('converts') ||
+        lowerText.includes('penalty goal') ||
+        typeText.includes('scored') ||
+        typeText.includes('penalty goal') ||
+        typeText.includes('penalty - scored') ||
+        item.scoringPlay === true ||
+        item.outcome === 'SCORED'
+      ) &&
+      !lowerText.includes('missed') &&
+      !lowerText.includes('saved') &&
+      !lowerText.includes('hit the post') &&
+      !lowerText.includes('over the bar');
+
+    if (isPenaltyKick && !isPenaltyScored && !isDisallowed) {
+      // Missed, saved, or non-scoring penalties are never goals
+      return null;
+    }
+
     let scorer = primaryAthlete;
     let assist = secondaryAthlete || null;
 
@@ -653,6 +684,12 @@ function _normalizeEvent(item, matchContext = {}) {
       const ogMatch = text.match(/(?:Own\s*Goal\s+by|Autogol\s+de|Gol\s+en\s+contra\s+de)\s+([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.'-]+?)(?:\s*\(|,|\.|$)/i);
       if (ogMatch) {
         scorer = ogMatch[1].trim();
+      }
+    }
+    if (!scorer && isPenaltyScored) {
+      const penMatch = text.match(/penalty (?:taken by|scored by|converted by) ([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.-]+?)(?:\.|$|\()/i);
+      if (penMatch) {
+        scorer = penMatch[1].trim();
       }
     }
     if (!scorer) {
@@ -739,13 +776,15 @@ function _normalizeEvent(item, matchContext = {}) {
     }
 
     const hasValidScore = extractedHomeScore !== null && extractedAwayScore !== null && (extractedHomeScore > 0 || extractedAwayScore > 0);
+    const finalType = isOwnGoal ? 'OWN_GOAL' : isPenaltyScored ? 'PENALTY_SCORED' : 'GOAL';
 
     return {
-      type: isOwnGoal ? 'OWN_GOAL' : 'GOAL',
+      type: finalType,
+      outcome: isPenaltyScored ? 'SCORED' : undefined,
       teamId,
       teamName: playerTeam || teamName,
       player: scorer || null,
-      assist: isOwnGoal ? null : (assist || null),
+      assist: (isOwnGoal || isPenaltyScored) ? null : (assist || null),
       minute: minute || 0,
       stoppageTime,
       period: item.period?.number || 1,
@@ -785,18 +824,28 @@ function _normalizeEvent(item, matchContext = {}) {
   }
 
   // 3. PENALTIES Detection (Only whitelisted PENALTY SCORED is permitted)
-  if (item.penaltyKick === true || typeText.includes('penalty') || lowerText.includes('penalty')) {
+  if (item.penaltyKick === true || typeText.includes('penalty') || lowerText.includes('penalty') || lowerText.includes('from the spot')) {
     const isScored =
-      lowerText.includes('scores') ||
-      lowerText.includes('converted') ||
-      lowerText.includes('converts penalty') ||
-      typeText.includes('scored') ||
-      item.scoringPlay === true;
+      !lowerText.includes('missed') &&
+      !lowerText.includes('saved') &&
+      !lowerText.includes('hit the post') &&
+      !lowerText.includes('over the bar') &&
+      (
+        lowerText.includes('scores') ||
+        lowerText.includes('converted') ||
+        lowerText.includes('converts') ||
+        lowerText.includes('penalty goal') ||
+        typeText.includes('scored') ||
+        typeText.includes('penalty goal') ||
+        typeText.includes('penalty - scored') ||
+        item.scoringPlay === true ||
+        item.outcome === 'SCORED'
+      );
 
     if (isScored) {
       let player = primaryAthlete;
       if (!player) {
-        const penMatch = text.match(/penalty (?:taken by|scored by) ([A-Z][a-zA-Z\s.-]+?)(?:\.|$)/i);
+        const penMatch = text.match(/penalty (?:taken by|scored by|converted by) ([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.-]+?)(?:\.|$|\()/i);
         if (penMatch) player = penMatch[1].trim();
       }
 
@@ -1070,6 +1119,11 @@ export async function fetchMatchDetails(fixtureId, leagueSlug = 'eng.1', existin
               existing.ownGoal = true;
               existing.type = 'OWN_GOAL';
             }
+            if (parsed.type === 'PENALTY_SCORED' && existing.type === 'GOAL') {
+              existing.type = 'PENALTY_SCORED';
+              existing.outcome = 'SCORED';
+              if (!existing.player && parsed.player) existing.player = parsed.player;
+            }
           } else {
             extractedEvents.push(parsed);
           }
@@ -1083,6 +1137,23 @@ export async function fetchMatchDetails(fixtureId, leagueSlug = 'eng.1', existin
       const parsed = normalizeEvent(com, normalized);
       if (parsed) {
         if (parsed.type === 'GOAL' || parsed.type === 'OWN_GOAL') continue; // Goals & Own goals already handled above
+
+        if (parsed.type === 'PENALTY_SCORED') {
+          const existing = extractedEvents.find(
+            (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED') &&
+                   ((e.id && parsed.id && String(e.id) === String(parsed.id)) ||
+                    (e.scoreAfterEvent && parsed.scoreAfterEvent && e.scoreAfterEvent.home === parsed.scoreAfterEvent.home && e.scoreAfterEvent.away === parsed.scoreAfterEvent.away) ||
+                    (e.minute === parsed.minute) ||
+                    (e.player && parsed.player && e.player.toLowerCase() === parsed.player.toLowerCase()) ||
+                    (Math.abs((e.minute || 0) - (parsed.minute || 0)) <= 2 && (!e.player || !parsed.player || e.player.toLowerCase() === parsed.player.toLowerCase())))
+          );
+          if (existing) {
+            existing.type = 'PENALTY_SCORED';
+            existing.outcome = 'SCORED';
+            if (!existing.player && parsed.player) existing.player = parsed.player;
+            continue;
+          }
+        }
 
         const isDuplicate = extractedEvents.some(
           (e) => e.type === parsed.type && e.minute === parsed.minute
