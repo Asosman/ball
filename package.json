@@ -8,6 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
+    "test": "node test-fixes.js",
+    "test:fixes": "node test-fixes.js",
+    "test:mock": "node index.js --mock",
     "test:live": "node test-espn-live.js",
     "lint": "tsc --noEmit"
   },
