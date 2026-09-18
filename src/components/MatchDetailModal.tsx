@@ -15,10 +15,19 @@ import {
   Radio,
   AlertTriangle,
   Flame,
+  Facebook,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { MatchEventSummary, ComprehensiveMatchData } from '../types';
 import { fetchComprehensiveMatch } from '../services/espn';
 import { extractMatchHighlights } from '../utils/eventHelpers';
+import {
+  makeUnicodeBold,
+  getMatchFlag,
+  extractTeamNames,
+  extractScore,
+} from '../utils/cliPublisherEngine';
 import { GraphicalComparison } from './GraphicalComparison';
 import { PlayByPlayView } from './PlayByPlayView';
 import { BoxScorePlayerStats } from './BoxScorePlayerStats';
@@ -46,6 +55,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   const [matchData, setMatchData] = useState<ComprehensiveMatchData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiedFbPost, setCopiedFbPost] = useState(false);
 
   const comp = match.competitions?.[0];
   const competitors = comp?.competitors || [];
@@ -53,6 +63,24 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
     competitors.find((c) => c.homeAway === 'home') || competitors[0];
   const awayTeam =
     competitors.find((c) => c.homeAway === 'away') || competitors[1];
+
+  const handleCopyFbPost = () => {
+    const { home, away } = extractTeamNames(match);
+    const { home: hScore, away: aScore } = extractScore(match);
+    const flag = getMatchFlag(match);
+    const statusText = match.status?.type?.detail || match.status?.type?.shortDetail || 'MATCH UPDATE';
+    const clock = match.status?.displayClock || '';
+
+    const text = `🔴 ${makeUnicodeBold(statusText.toUpperCase())} ${flag}\n\n` +
+      `⚽ ${makeUnicodeBold(home)} ${hScore} - ${aScore} ${makeUnicodeBold(away)}\n` +
+      (clock ? `⏱️ Clock: ${clock}\n` : '') +
+      `🏆 League: ${match.league || 'Football'}\n\n` +
+      `#Football #LiveScore #ESPN #WAT #MatchDay`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedFbPost(true);
+    setTimeout(() => setCopiedFbPost(false), 2000);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -133,6 +161,16 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
                   <span>{isMonitored ? 'Monitored' : 'Monitor Match'}</span>
                 </button>
               )}
+
+              <button
+                id="btn-copy-fb-post"
+                onClick={handleCopyFbPost}
+                title="Copy formatted Facebook post update for this match"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-950/80 hover:bg-blue-900/80 text-blue-300 border border-blue-800 text-xs font-semibold transition-colors"
+              >
+                {copiedFbPost ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Facebook className="w-3.5 h-3.5 text-blue-400" />}
+                <span className="hidden sm:inline">{copiedFbPost ? 'Copied!' : 'Copy FB Post'}</span>
+              </button>
 
               <button
                 onClick={loadData}

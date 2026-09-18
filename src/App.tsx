@@ -8,6 +8,8 @@ import {
   Radio,
   Bell,
   Activity,
+  Terminal,
+  Sparkles,
 } from 'lucide-react';
 import { fetchScoreboard, getWATDates } from './services/espn';
 import { MatchEventSummary } from './types';
@@ -15,6 +17,7 @@ import { SUPPORTED_LEAGUES } from './utils/sportsConfig';
 import { Header, ViewTab } from './components/Header';
 import { MatchCard } from './components/MatchCard';
 import { MatchDetailModal } from './components/MatchDetailModal';
+import { CliConsoleHub } from './components/CliConsoleHub';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ViewTab>('separated');
@@ -266,48 +269,90 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* League Selector & Search Bar */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
-          {/* Quick League Selector Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 md:pb-0 scrollbar-none">
-            {SUPPORTED_LEAGUES.map((league) => (
-              <button
-                key={league.id}
-                id={`league-pill-${league.slug}`}
-                onClick={() => setSelectedLeagueId(league.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                  selectedLeagueId === league.id
-                    ? 'bg-red-600 text-white shadow-sm'
-                    : 'bg-neutral-800/80 text-neutral-300 hover:bg-neutral-800 hover:text-white'
-                }`}
-              >
-                <span>{league.name}</span>
-              </button>
-            ))}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6">
+        {/* CLI Quick Action Banner (Shown on Separated, Yesterday, Today & Monitored tabs) */}
+        {activeTab !== 'cli' && (
+          <div className="bg-gradient-to-r from-neutral-900 via-neutral-900 to-neutral-950 border border-neutral-800 rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-950 border border-emerald-700/60 flex items-center justify-center text-emerald-400 shrink-0">
+                <Terminal className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                  CLI & Facebook Publishing Hub
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                    Full CLI Parity
+                  </span>
+                </p>
+                <p className="text-[11px] sm:text-xs text-neutral-400">
+                  Format today's fixtures or yesterday's results, publish to Facebook Page, or simulate match lifecycles.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab('cli')}
+              className="w-full sm:w-auto px-3.5 py-2 sm:py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm shrink-0"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Open CLI Console Hub</span>
+            </button>
           </div>
+        )}
 
-          {/* Search Box */}
-          <div className="relative w-full md:w-72 shrink-0">
-            <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
-            <input
-              id="input-match-search"
-              type="text"
-              placeholder="Search club, team, or league..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-red-500 transition-colors"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-2 text-neutral-500 hover:text-neutral-300 text-xs"
-              >
-                ×
-              </button>
-            )}
+        {/* League Selector & Search Bar (Only shown on non-cli views) */}
+        {activeTab !== 'cli' && (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 shadow-sm">
+            {/* Quick League Selector Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 md:pb-0 no-scrollbar">
+              {SUPPORTED_LEAGUES.map((league) => (
+                <button
+                  key={league.id}
+                  id={`league-pill-${league.slug}`}
+                  onClick={() => setSelectedLeagueId(league.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                    selectedLeagueId === league.id
+                      ? 'bg-red-600 text-white shadow-sm'
+                      : 'bg-neutral-800/80 text-neutral-300 hover:bg-neutral-800 hover:text-white'
+                  }`}
+                >
+                  <span>{league.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Search Box */}
+            <div className="relative w-full md:w-72 shrink-0">
+              <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-2.5" />
+              <input
+                id="input-match-search"
+                type="text"
+                placeholder="Search club, team, or league..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg text-xs text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-red-500 transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-2 text-neutral-500 hover:text-neutral-300 text-xs"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* SECTION: CLI CONSOLE & FACEBOOK PUBLISHER HUB */}
+        {activeTab === 'cli' && (
+          <CliConsoleHub
+            todayMatches={todayMatches}
+            yesterdayMatches={yesterdayMatches}
+            monitoredMatchIds={monitoredMatchIds}
+            onToggleMonitor={toggleMonitorMatch}
+            onSelectMatch={(m) => setActiveMatch(m)}
+          />
+        )}
 
         {/* SECTION: MONITORED MATCHES VIEW */}
         {activeTab === 'monitored' && (
