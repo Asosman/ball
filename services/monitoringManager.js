@@ -11,6 +11,8 @@ import {
   isUpdateAllowed,
   queuePendingUpdate,
   registerPostSchedule,
+  getPostSpacingWaitMs,
+  TARGET_POST_SPACING_MS,
 } from './updateScheduler.js';
 
 class MonitoringManager {
@@ -22,6 +24,38 @@ class MonitoringManager {
     this.lastPollTimestamp = null;
     this.fullTimeGraceCycles = new Map(); // tracks full-time removal
     this.matchLocks = new Map(); // Per-match concurrency protection
+    this.publishQueueLock = Promise.resolve(); // Global lock enforcing 1-2 min post separation
+  }
+
+  /**
+   * Serializes Facebook post publishing with mandatory post spacing of at least 1–2 minutes.
+   * Ensures no two posts are ever published at the same time across any matches.
+   * @param {() => Promise<string|null>} postTask
+   * @returns {Promise<string|null>}
+   */
+  async withPostSpacing(postTask) {
+    const runTask = async () => {
+      const lastPostAt = await db.getLastFacebookPostTime();
+      const targetSpacing = config.isMockMode ? 1000 : TARGET_POST_SPACING_MS;
+      const waitMs = getPostSpacingWaitMs(lastPostAt, targetSpacing);
+
+      if (waitMs > 0) {
+        const elapsedSec = lastPostAt ? Math.round((Date.now() - lastPostAt) / 1000) : 0;
+        logger.info(`[POST SPACING] Enforcing 1–2 minute delay between posts (last post was ${elapsedSec}s ago). Waiting ${Math.round(waitMs / 1000)}s before next Facebook post...`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+
+      const postId = await postTask();
+
+      if (postId) {
+        await db.recordLastFacebookPostTime(new Date().toISOString());
+      }
+      return postId;
+    };
+
+    const nextLock = this.publishQueueLock.then(runTask, runTask);
+    this.publishQueueLock = nextLock.then(() => {}, () => {});
+    return nextLock;
   }
 
   get facebook() {
@@ -203,7 +237,9 @@ class MonitoringManager {
       if (lineupPostAction === 'PUBLISH' && !lineupsPosted) {
         const lineupMsg = formatLineupPost(currentMatch, currentMatch.lineups.home, currentMatch.lineups.away);
         logger.info(`Publishing official starting lineups for ${currentMatch.homeName} vs ${currentMatch.awayName}...`);
-        lineupPostId = await this.facebook.createPagePost(lineupMsg);
+        lineupPostId = await this.withPostSpacing(async () => {
+          return this.facebook.createPagePost(lineupMsg);
+        });
         lineupsPosted = true;
 
         await db.saveMatchRecord(fixtureId, {
@@ -242,20 +278,65 @@ class MonitoringManager {
         });
       }
 
-      // 5. Publish New Events with duplicate pre-check
+      // 5. Publish New Events with duplicate pre-check and 1-2 min post spacing
       for (const ev of newEvents) {
         if (!isWhitelistedEvent(ev)) continue;
 
-        // PRE-CHECK: Check if Facebook post already exists for this event
-        const existingPostId = canonicalEvents[ev.eventId]?.facebookPostId || prevRecord?.facebookPosts?.[ev.eventId]?.postId;
+        // PRE-CHECK 1: Check if Facebook post already exists for this exact event
+        const existingPostId =
+          canonicalEvents[ev.eventId]?.facebookPostId ||
+          Object.values(canonicalFacebookPosts || {}).find((p) => p.eventId === ev.eventId)?.postId ||
+          Object.values(prevRecord?.facebookPosts || {}).find((p) => p.eventId === ev.eventId)?.postId;
+
         if (existingPostId) {
           logger.warn(`[DUPLICATE PROTECTION] Facebook post already exists (${existingPostId}) for event ${ev.eventId}. Skipping.`);
           continue;
         }
 
+        // PRE-CHECK 2: Special single-occurrence lifecycle events per match (HALF_TIME, KICKOFF, FULL_TIME)
+        if (ev.type === 'HALF_TIME') {
+          const alreadyHasHtPost =
+            Boolean(canonicalEvents[`${fixtureId}:HALF_TIME`]?.facebookPostId) ||
+            Object.values(canonicalFacebookPosts || {}).some((p) => p.type === 'HALF_TIME' || p.eventId?.endsWith(':HALF_TIME')) ||
+            Object.values(prevRecord?.facebookPosts || {}).some((p) => p.type === 'HALF_TIME' || p.eventId?.endsWith(':HALF_TIME'));
+
+          if (alreadyHasHtPost) {
+            logger.warn(`[DUPLICATE PROTECTION] Half-time post already exists for match ${fixtureId}. Skipping duplicate publish.`);
+            continue;
+          }
+        }
+
+        if (ev.type === 'KICKOFF') {
+          const alreadyHasKickoffPost =
+            Boolean(canonicalEvents[`${fixtureId}:KICKOFF`]?.facebookPostId) ||
+            Object.values(canonicalFacebookPosts || {}).some((p) => p.type === 'KICKOFF' || p.eventId?.endsWith(':KICKOFF')) ||
+            Object.values(prevRecord?.facebookPosts || {}).some((p) => p.type === 'KICKOFF' || p.eventId?.endsWith(':KICKOFF'));
+
+          if (alreadyHasKickoffPost) {
+            logger.warn(`[DUPLICATE PROTECTION] Kickoff post already exists for match ${fixtureId}. Skipping duplicate publish.`);
+            continue;
+          }
+        }
+
+        if (ev.type === 'FULL_TIME') {
+          const alreadyHasFtPost =
+            Boolean(canonicalEvents[`${fixtureId}:FULL_TIME`]?.facebookPostId) ||
+            Object.values(canonicalFacebookPosts || {}).some((p) => p.type === 'FULL_TIME' || p.eventId?.endsWith(':FULL_TIME')) ||
+            Object.values(prevRecord?.facebookPosts || {}).some((p) => p.type === 'FULL_TIME' || p.eventId?.endsWith(':FULL_TIME'));
+
+          if (alreadyHasFtPost) {
+            logger.warn(`[DUPLICATE PROTECTION] Full-time post already exists for match ${fixtureId}. Skipping duplicate publish.`);
+            continue;
+          }
+        }
+
         const postMsg = formatEventPost(ev, currentMatch);
         logger.info(`Publishing new event: [${ev.type}] (${ev.eventId}) for ${currentMatch.homeName} vs ${currentMatch.awayName}`);
-        const postId = await this.facebook.createPagePost(postMsg);
+
+        // Enforce 1-2 min post separation between any posts
+        const postId = await this.withPostSpacing(async () => {
+          return this.facebook.createPagePost(postMsg);
+        });
 
         if (postId) {
           const postedAt = new Date().toISOString();

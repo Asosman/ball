@@ -5,6 +5,27 @@ import logger from '../utils/logger.js';
 export const MIN_UPDATE_DELAY_MS = 2 * 60 * 1000; // 2 minutes (120,000 ms)
 export const MAX_UPDATE_DELAY_MS = 5 * 60 * 1000; // 5 minutes (300,000 ms)
 
+// Configuration: At least 1 to 2 minutes separation between Facebook posts
+export const MIN_POST_SPACING_MS = 60 * 1000; // 1 minute (60,000 ms) minimum
+export const TARGET_POST_SPACING_MS = 65 * 1000; // 65 seconds (1.08 minutes) target
+export const MAX_POST_SPACING_MS = 120 * 1000; // 2 minutes (120,000 ms)
+
+/**
+ * Calculates remaining cooldown milliseconds required before a new post can be published.
+ * Ensures posts are spaced by at least 1 to 2 minutes.
+ * @param {number|string|null} lastPostTime
+ * @param {number} [targetSpacingMs=TARGET_POST_SPACING_MS]
+ * @returns {number} remaining ms to wait (0 if ready)
+ */
+export function getPostSpacingWaitMs(lastPostTime, targetSpacingMs = TARGET_POST_SPACING_MS) {
+  if (!lastPostTime) return 0;
+  const lastTime = typeof lastPostTime === 'number' ? lastPostTime : new Date(lastPostTime).getTime();
+  if (isNaN(lastTime) || lastTime <= 0) return 0;
+  const elapsed = Date.now() - lastTime;
+  if (elapsed >= targetSpacingMs) return 0;
+  return targetSpacingMs - elapsed;
+}
+
 /**
  * Calculates a randomized timestamp between 2 and 5 minutes after createdAt.
  * @param {string|number|Date} createdAt

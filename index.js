@@ -127,10 +127,25 @@ async function runMockSimulation() {
       if (!isWhitelistedEvent(ev)) continue;
 
       // Duplicate pre-check
-      const existingPostId = canonicalEvents[ev.eventId]?.facebookPostId || prevRecord?.facebookPosts?.[ev.eventId]?.postId;
+      const existingPostId =
+        canonicalEvents[ev.eventId]?.facebookPostId ||
+        Object.values(canonicalFacebookPosts || {}).find((p) => p.eventId === ev.eventId)?.postId ||
+        Object.values(prevRecord?.facebookPosts || {}).find((p) => p.eventId === ev.eventId)?.postId;
       if (existingPostId) {
         logger.warn(`[DUPLICATE PROTECTION] Facebook post already exists (${existingPostId}) for event ${ev.eventId}. Skipping.`);
         continue;
+      }
+
+      // Half-Time single post guard
+      if (ev.type === 'HALF_TIME') {
+        const alreadyHasHtPost =
+          Boolean(canonicalEvents[`${fixtureId}:HALF_TIME`]?.facebookPostId) ||
+          Object.values(canonicalFacebookPosts || {}).some((p) => p.type === 'HALF_TIME' || p.eventId?.endsWith(':HALF_TIME')) ||
+          Object.values(prevRecord?.facebookPosts || {}).some((p) => p.type === 'HALF_TIME' || p.eventId?.endsWith(':HALF_TIME'));
+        if (alreadyHasHtPost) {
+          logger.warn(`[DUPLICATE PROTECTION] Half-time post already exists for fixture ${fixtureId}. Skipping.`);
+          continue;
+        }
       }
 
       const postMsg = formatEventPost(ev, stepState);

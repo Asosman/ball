@@ -287,6 +287,28 @@ export async function removeMatchRecord(fixtureId) {
   });
 }
 
+/**
+ * Retrieves the timestamp of the last published Facebook post across all matches.
+ * @returns {Promise<number>} epoch milliseconds (or 0 if no post yet)
+ */
+export async function getLastFacebookPostTime() {
+  const db = await getDatabase();
+  return db.lastFacebookPostAt ? new Date(db.lastFacebookPostAt).getTime() : 0;
+}
+
+/**
+ * Persists the timestamp of the most recent Facebook post to enforce global 1-2 minute rate limiting.
+ * @param {string} [timestamp] ISO string
+ * @returns {Promise<void>}
+ */
+export async function recordLastFacebookPostTime(timestamp = new Date().toISOString()) {
+  return enqueueWrite(async () => {
+    const db = await getDatabase();
+    db.lastFacebookPostAt = timestamp;
+    await writeDbAtomic(db);
+  });
+}
+
 export default {
   initDb,
   getDatabase,
@@ -299,4 +321,6 @@ export default {
   recordFacebookPost,
   getAllMatches,
   removeMatchRecord,
+  getLastFacebookPostTime,
+  recordLastFacebookPostTime,
 };

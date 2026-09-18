@@ -1122,6 +1122,7 @@ export async function fetchMatchDetails(fixtureId, leagueSlug = 'eng.1', existin
             if (parsed.type === 'PENALTY_SCORED' && existing.type === 'GOAL') {
               existing.type = 'PENALTY_SCORED';
               existing.outcome = 'SCORED';
+              existing.assist = null;
               if (!existing.player && parsed.player) existing.player = parsed.player;
             }
           } else {
@@ -1150,6 +1151,7 @@ export async function fetchMatchDetails(fixtureId, leagueSlug = 'eng.1', existin
           if (existing) {
             existing.type = 'PENALTY_SCORED';
             existing.outcome = 'SCORED';
+            existing.assist = null;
             if (!existing.player && parsed.player) existing.player = parsed.player;
             continue;
           }

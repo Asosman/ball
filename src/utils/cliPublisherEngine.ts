@@ -341,6 +341,11 @@ export async function publishToFacebook(
       status: 'SIMULATED',
     };
     savePublishedPost(record);
+    try {
+      localStorage.setItem('fb_last_post_time', String(Date.now()));
+    } catch {
+      // ignore
+    }
     return {
       success: true,
       postId: mockId,
@@ -387,6 +392,11 @@ export async function publishToFacebook(
       status: 'PUBLISHED',
     };
     savePublishedPost(record);
+    try {
+      localStorage.setItem('fb_last_post_time', String(Date.now()));
+    } catch {
+      // ignore
+    }
     return { success: true, postId, isSimulated: false };
   } catch (err: any) {
     const errMsg = err?.message || 'Network error connecting to Facebook Graph API';

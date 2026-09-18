@@ -41,7 +41,7 @@ export function isWhitelistedEvent(ev) {
   const type = ev.type.toUpperCase();
   if (WHITELISTED_EVENT_TYPES.has(type)) return true;
   if (type === 'OWN_GOAL') return true;
-  if (type === 'HALFTIME' || type === 'HALF_TIME') return true;
+  if (type === 'HALFTIME' || type === 'HALF_TIME' || type === 'HALF-TIME' || type === 'HALF TIME' || type === 'HT') return true;
   if (type === 'FULLTIME' || type === 'FULL_TIME' || type === 'FULL_TIME_PENDING_ET') return true;
   if (type === 'EXTRA_TIME_START' || type === 'EXTRA_TIME') return true;
   if (type === 'FULL_TIME_POST_ET' || type === 'AFTER_EXTRA_TIME_OR_SHOOTOUT') return true;
@@ -295,9 +295,7 @@ export function formatEventPost(event, currentMatch) {
       if (event.player) {
         detailLines.push(`🎯 Scorer: ${makeUnicodeBold(event.player)} (Penalty)`);
       }
-      if (event.assist) {
-        detailLines.push(`🪄 Assist: ${event.assist} 🅰️`);
-      }
+      // Note: Penalty goals strictly do not have an assist per soccer conventions
       break;
 
     case 'RED_CARD':
@@ -469,7 +467,7 @@ export function getCanonicalEventId(ev, fixtureId, occurrenceIndex = 0) {
   }
 
   // 2. Half-time: exactly one per match
-  if (type === 'HALF_TIME' || type === 'HALFTIME') {
+  if (type === 'HALF_TIME' || type === 'HALFTIME' || type === 'HALF-TIME' || type === 'HALF TIME' || type === 'HT') {
     return `${fixtureId}:HALF_TIME`;
   }
 
@@ -628,11 +626,23 @@ export function compareMatchState(prevRecord, currentMatch) {
     });
   }
 
-  // Lifecycle: HALF-TIME
+  // Lifecycle: HALF-TIME (Strictly at most one half-time event per match)
+  const halfTimeAlreadyHandled =
+    Boolean(canonicalEvents[`${fixtureId}:HALF_TIME`]) ||
+    Object.values(canonicalEvents).some(
+      (e) => (e.type === 'HALF_TIME' || e.eventId?.endsWith(':HALF_TIME')) &&
+             (e.facebookPostId || e.status === 'VALID' || e.status === 'POSTED')
+    ) ||
+    Object.values(facebookPosts).some(
+      (p) => p.type === 'HALF_TIME' || p.eventId?.endsWith(':HALF_TIME')
+    ) ||
+    Boolean(prevRecord?.postedEvents?.some((sig) => sig.includes('HALF_TIME') || sig.includes('HALFTIME')));
+
   if (
-    currentMatch.status?.description === 'Halftime' ||
-    currentMatch.status?.name === 'STATUS_HALFTIME' ||
-    currentMatch.status?.detail?.toLowerCase().includes('halftime')
+    !halfTimeAlreadyHandled &&
+    (currentMatch.status?.description === 'Halftime' ||
+     currentMatch.status?.name === 'STATUS_HALFTIME' ||
+     currentMatch.status?.detail?.toLowerCase().includes('halftime'))
   ) {
     candidateEvents.push({
       type: 'HALF_TIME',
@@ -695,10 +705,24 @@ export function compareMatchState(prevRecord, currentMatch) {
     let ev = { ...rawEv };
 
     // Standardize aliases
-    if (ev.type === 'HALFTIME') ev.type = 'HALF_TIME';
-    if (ev.type === 'FULLTIME') ev.type = 'FULL_TIME';
+    if (
+      ev.type === 'HALFTIME' ||
+      ev.type === 'HALF-TIME' ||
+      ev.type === 'HALF TIME' ||
+      ev.type === 'HT'
+    ) {
+      ev.type = 'HALF_TIME';
+    }
+    if (ev.type === 'FULLTIME' || ev.type === 'FULL TIME' || ev.type === 'FT') ev.type = 'FULL_TIME';
     if (ev.type === 'EXTRA_TIME_START') ev.type = 'EXTRA_TIME';
     if (ev.type === 'FULL_TIME_POST_ET') ev.type = 'AFTER_EXTRA_TIME_OR_SHOOTOUT';
+
+    // Strict half-time single occurrence guard
+    if (ev.type === 'HALF_TIME') {
+      if (halfTimeAlreadyHandled || candidateEvents.some((c) => c.type === 'HALF_TIME')) {
+        continue;
+      }
+    }
 
     // Handle VAR events: only allowed if directly resulting in a disallowed goal
     if (ev.type === 'VAR') {
@@ -711,10 +735,11 @@ export function compareMatchState(prevRecord, currentMatch) {
       }
     }
 
-    // Handle Penalty events: only PENALTY_SCORED is allowed
+    // Handle Penalty events: only PENALTY_SCORED is allowed (and penalties have NO assists)
     if (ev.type === 'PENALTY') {
       if (ev.outcome === 'SCORED') {
         ev.type = 'PENALTY_SCORED';
+        ev.assist = null;
       } else {
         continue;
       }
@@ -732,6 +757,7 @@ export function compareMatchState(prevRecord, currentMatch) {
       ) {
         ev.type = 'PENALTY_SCORED';
         ev.outcome = 'SCORED';
+        ev.assist = null;
       }
     }
 
@@ -895,10 +921,16 @@ export function compareMatchState(prevRecord, currentMatch) {
       if ((ev.type === 'PENALTY_SCORED' || type === 'PENALTY_SCORED') && matchedEvent.type === 'GOAL') {
         matchedEvent.type = 'PENALTY_SCORED';
         matchedEvent.outcome = 'SCORED';
+        matchedEvent.assist = null;
         contentChanged = true;
       }
 
-      if (ev.assist && !matchedEvent.assist) {
+      if (matchedEvent.type === 'PENALTY_SCORED') {
+        if (matchedEvent.assist) {
+          matchedEvent.assist = null;
+          contentChanged = true;
+        }
+      } else if (ev.assist && !matchedEvent.assist) {
         matchedEvent.assist = ev.assist;
         contentChanged = true;
       }
@@ -1081,7 +1113,7 @@ export function compareMatchState(prevRecord, currentMatch) {
       period,
       teamId: ev.teamId || null,
       player: ev.player || null,
-      assist: ev.assist || null,
+      assist: type === 'PENALTY_SCORED' ? null : (ev.assist || null),
       scoreAfterEvent,
       homeScore: scoreAfterEvent.home,
       awayScore: scoreAfterEvent.away,
@@ -1099,6 +1131,11 @@ export function compareMatchState(prevRecord, currentMatch) {
     };
 
     canonicalEvents[eventId] = newRecord;
+
+    // Guard against duplicate half-time events in the same cycle
+    if (type === 'HALF_TIME' && newEvents.some((e) => e.type === 'HALF_TIME')) {
+      continue;
+    }
 
     newEvents.push({
       ...newRecord,
