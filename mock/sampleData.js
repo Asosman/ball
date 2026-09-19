@@ -292,7 +292,7 @@ export const MOCK_MATCH_LIFECYCLE = [
     leagueSlug: 'eng.1',
     kickoff: new Date().toISOString(),
     status: { state: 'in', description: 'In Progress', clock: "42'", period: 1 },
-    score: { home: 1, away: 0 },
+    score: { home: 0, away: 0 },
     lineups: {
       home: MOCK_LINEUPS.home,
       away: MOCK_LINEUPS.away,
@@ -338,7 +338,7 @@ export const MOCK_MATCH_LIFECYCLE = [
     leagueSlug: 'eng.1',
     kickoff: new Date().toISOString(),
     status: { state: 'in', description: 'In Progress', clock: "44'", period: 1 },
-    score: { home: 1, away: 0 },
+    score: { home: 0, away: 0 },
     lineups: {
       home: MOCK_LINEUPS.home,
       away: MOCK_LINEUPS.away,
@@ -391,7 +391,7 @@ export const MOCK_MATCH_LIFECYCLE = [
     leagueSlug: 'eng.1',
     kickoff: new Date().toISOString(),
     status: { state: 'in', description: 'In Progress', clock: "45'", period: 1 },
-    score: { home: 1, away: 0 },
+    score: { home: 0, away: 0 },
     lineups: {
       home: MOCK_LINEUPS.home,
       away: MOCK_LINEUPS.away,
@@ -432,10 +432,10 @@ export const MOCK_MATCH_LIFECYCLE = [
     ],
   },
 
-  // 12. Half-time — 1-0
+  // 12. Half-time — 0-0
   {
     step: 12,
-    title: 'Half-time reached (Arsenal 1 - 0 Chelsea)',
+    title: 'Half-time reached (Arsenal 0 - 0 Chelsea)',
     fixtureId: MOCK_FIXTURE_ID,
     homeName: 'Arsenal',
     awayName: 'Chelsea',
@@ -443,7 +443,7 @@ export const MOCK_MATCH_LIFECYCLE = [
     leagueSlug: 'eng.1',
     kickoff: new Date().toISOString(),
     status: { state: 'in', description: 'Halftime', clock: "45+2'", period: 1 },
-    score: { home: 1, away: 0 },
+    score: { home: 0, away: 0 },
     lineups: {
       home: MOCK_LINEUPS.home,
       away: MOCK_LINEUPS.away,
@@ -495,7 +495,7 @@ export const MOCK_MATCH_LIFECYCLE = [
     leagueSlug: 'eng.1',
     kickoff: new Date().toISOString(),
     status: { state: 'in', description: 'Second half', clock: "46'", period: 2 },
-    score: { home: 1, away: 0 },
+    score: { home: 0, away: 0 },
     lineups: {
       home: MOCK_LINEUPS.home,
       away: MOCK_LINEUPS.away,

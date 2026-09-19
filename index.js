@@ -126,6 +126,17 @@ async function runMockSimulation() {
     for (const ev of newEvents) {
       if (!isWhitelistedEvent(ev)) continue;
 
+      // Disallowed goal protection: Never create a new post for a disallowed goal
+      if (ev.type === 'GOAL_DISALLOWED' || ev.status === 'DISALLOWED' || ev.isDisallowed) {
+        logger.warn(`[GOAL DISALLOWED PROTECTION] Blocked disallowed goal from creating a new post (${ev.eventId}).`);
+        continue;
+      }
+
+      if (canonicalEvents[ev.eventId]?.status === 'DISALLOWED') {
+        logger.warn(`[GOAL DISALLOWED PROTECTION] Event ${ev.eventId} is marked DISALLOWED in canonical state. Skipping publish.`);
+        continue;
+      }
+
       // Duplicate pre-check
       const existingPostId =
         canonicalEvents[ev.eventId]?.facebookPostId ||
@@ -191,7 +202,8 @@ async function runMockSimulation() {
         registerPostSchedule(postRecord);
       }
 
-      if (postRecord && !isUpdateAllowed(postRecord)) {
+      // Disallowed goal edits MUST apply immediately to edit the existing goal post without delay
+      if (postRecord && !edit.isDisallowed && !isUpdateAllowed(postRecord)) {
         queuePendingUpdate(postRecord, edit);
         continue;
       }
@@ -203,8 +215,14 @@ async function runMockSimulation() {
         canonicalEvents[edit.eventId].lastContentSignature = edit.newContentSig;
         if (edit.isDisallowed) {
           canonicalEvents[edit.eventId].status = 'DISALLOWED';
+          canonicalEvents[edit.eventId].isDisallowed = true;
         }
-        if (postRecord) delete postRecord.pendingUpdate;
+        if (postRecord) {
+          delete postRecord.pendingUpdate;
+          if (edit.isDisallowed) {
+            postRecord.status = 'DISALLOWED';
+          }
+        }
 
         console.log(`\n✏️ [FACEBOOK EVENT POST UPDATED: ${edit.event.type}] (${edit.eventId})`);
         console.log(updatedMsg);

@@ -282,6 +282,17 @@ class MonitoringManager {
       for (const ev of newEvents) {
         if (!isWhitelistedEvent(ev)) continue;
 
+        // Disallowed goal protection: Never create a new post for a disallowed goal
+        if (ev.type === 'GOAL_DISALLOWED' || ev.status === 'DISALLOWED' || ev.isDisallowed) {
+          logger.warn(`[GOAL DISALLOWED PROTECTION] Blocked disallowed goal from creating a new post (${ev.eventId}).`);
+          continue;
+        }
+
+        if (canonicalEvents[ev.eventId]?.status === 'DISALLOWED') {
+          logger.warn(`[GOAL DISALLOWED PROTECTION] Event ${ev.eventId} is marked DISALLOWED in canonical state. Skipping publish.`);
+          continue;
+        }
+
         // PRE-CHECK 1: Check if Facebook post already exists for this exact event
         const existingPostId =
           canonicalEvents[ev.eventId]?.facebookPostId ||
@@ -376,21 +387,28 @@ class MonitoringManager {
           registerPostSchedule(postRecord);
         }
 
-        if (postRecord && !isUpdateAllowed(postRecord)) {
+        // Disallowed goal edits MUST apply immediately to edit the existing goal post without 2-5 min waiting delay
+        if (postRecord && !edit.isDisallowed && !isUpdateAllowed(postRecord)) {
           queuePendingUpdate(postRecord, edit);
           continue;
         }
 
         const updatedMsg = formatEventPost(edit.event, currentMatch);
-        logger.info(`Updating Facebook post ${edit.postId} (${edit.eventId}) with newly resolved details...`);
+        logger.info(`Updating Facebook post ${edit.postId} (${edit.eventId}) with newly resolved details (isDisallowed=${Boolean(edit.isDisallowed)})...`);
         const success = await this.facebook.updatePagePost(edit.postId, updatedMsg);
 
         if (success && edit.eventId && canonicalEvents[edit.eventId]) {
           canonicalEvents[edit.eventId].lastContentSignature = edit.newContentSig;
           if (edit.isDisallowed) {
             canonicalEvents[edit.eventId].status = 'DISALLOWED';
+            canonicalEvents[edit.eventId].isDisallowed = true;
           }
-          if (postRecord) delete postRecord.pendingUpdate;
+          if (postRecord) {
+            delete postRecord.pendingUpdate;
+            if (edit.isDisallowed) {
+              postRecord.status = 'DISALLOWED';
+            }
+          }
           await db.saveMatchEvent(fixtureId, edit.eventId, canonicalEvents[edit.eventId]);
         }
       }

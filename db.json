@@ -52,8 +52,8 @@
           "reason": "",
           "status": "VALID",
           "facebookPostId": "mock-post-002",
-          "postedAt": "2026-09-18T22:09:36.306Z",
-          "occurrenceTime": "2026-09-18T22:09:35.185Z",
+          "postedAt": "2026-09-19T13:29:58.265Z",
+          "occurrenceTime": "2026-09-19T13:29:57.214Z",
           "goalKey": null,
           "lastContentSignature": "KICKOFF|0-0|||1|PENDING|"
         },
@@ -68,22 +68,24 @@
           "player": "Bukayo Saka",
           "assist": "Martin Ødegaard",
           "scoreAfterEvent": {
-            "home": 1,
+            "home": 0,
             "away": 0
           },
-          "homeScore": 1,
+          "homeScore": 0,
           "awayScore": 0,
           "ownGoal": false,
           "isSecondYellow": false,
           "description": "",
           "text": "",
           "reason": "",
-          "status": "VALID",
+          "status": "DISALLOWED",
           "facebookPostId": "mock-post-003",
-          "postedAt": "2026-09-18T22:09:36.818Z",
-          "occurrenceTime": "2026-09-18T22:09:36.816Z",
+          "postedAt": "2026-09-19T13:29:58.774Z",
+          "occurrenceTime": "2026-09-19T13:29:58.772Z",
           "goalKey": "24:p1:team:0",
-          "lastContentSignature": "GOAL|1-0|Bukayo Saka|Martin Ødegaard|24|VALID|"
+          "lastContentSignature": "GOAL|0-0|Bukayo Saka|Martin Ødegaard|24|DISALLOWED|",
+          "isDisallowed": true,
+          "disallowedReason": "Goal ruled out after review"
         },
         "401678123:RED_CARD:p1:m31:tteam:idx0": {
           "eventId": "401678123:RED_CARD:p1:m31:tteam:idx0",
@@ -108,39 +110,15 @@
           "reason": "",
           "status": "VALID",
           "facebookPostId": "mock-post-004",
-          "postedAt": "2026-09-18T22:09:37.832Z",
-          "occurrenceTime": "2026-09-18T22:09:37.830Z",
+          "postedAt": "2026-09-19T13:29:59.795Z",
+          "occurrenceTime": "2026-09-19T13:29:59.792Z",
           "goalKey": null,
           "lastContentSignature": "RED_CARD|1-0|Moisés Caicedo||31|PENDING|Violent conduct tackle"
         },
-        "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0": {
-          "eventId": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-          "eventKey": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-          "rawId": null,
-          "type": "GOAL_DISALLOWED",
-          "minute": 42,
-          "period": 1,
-          "teamId": null,
-          "player": null,
-          "assist": null,
-          "scoreAfterEvent": {
-            "home": 1,
-            "away": 0
-          },
-          "homeScore": 1,
-          "awayScore": 0,
-          "ownGoal": false,
-          "isSecondYellow": false,
-          "description": "Goal disallowed for offside following VAR review",
-          "text": "Goal disallowed for offside following VAR review",
-          "reason": "Goal disallowed for offside following VAR review",
-          "status": "DISALLOWED",
-          "facebookPostId": "mock-post-005",
-          "postedAt": "2026-09-18T22:09:39.349Z",
-          "occurrenceTime": "2026-09-18T22:09:39.346Z",
-          "goalKey": null,
-          "lastContentSignature": "GOAL_DISALLOWED|1-0|||42|DISALLOWED|Goal disallowed for offside following VAR review",
-          "disallowedReason": "Goal disallowed for offside following VAR review"
+        "DISALLOW_HANDLED:1:42:Goal disallowed for offside fo": {
+          "type": "DISALLOW_HANDLED",
+          "targetEventId": null,
+          "timestamp": 1789824601308
         },
         "401678123:HALF_TIME": {
           "eventId": "401678123:HALF_TIME",
@@ -153,10 +131,10 @@
           "player": null,
           "assist": null,
           "scoreAfterEvent": {
-            "home": 1,
+            "home": 0,
             "away": 0
           },
-          "homeScore": 1,
+          "homeScore": 0,
           "awayScore": 0,
           "ownGoal": false,
           "isSecondYellow": false,
@@ -164,11 +142,11 @@
           "text": "",
           "reason": "",
           "status": "VALID",
-          "facebookPostId": "mock-post-006",
-          "postedAt": "2026-09-18T22:09:40.866Z",
-          "occurrenceTime": "2026-09-18T22:09:40.864Z",
+          "facebookPostId": "mock-post-005",
+          "postedAt": "2026-09-19T13:30:02.824Z",
+          "occurrenceTime": "2026-09-19T13:30:02.821Z",
           "goalKey": null,
-          "lastContentSignature": "HALF_TIME|1-0|||45|PENDING|"
+          "lastContentSignature": "HALF_TIME|0-0|||45|PENDING|"
         },
         "401678123:GOAL:p1:m88:tteam:idx0": {
           "eventId": "401678123:GOAL:p1:m88:tteam:idx0",
@@ -192,9 +170,9 @@
           "text": "",
           "reason": "",
           "status": "VALID",
-          "facebookPostId": "mock-post-007",
-          "postedAt": "2026-09-18T22:09:41.879Z",
-          "occurrenceTime": "2026-09-18T22:09:41.876Z",
+          "facebookPostId": "mock-post-006",
+          "postedAt": "2026-09-19T13:30:03.837Z",
+          "occurrenceTime": "2026-09-19T13:30:03.834Z",
           "goalKey": "88:p1:team:0",
           "lastContentSignature": "GOAL|1-1|Cole Palmer|Enzo Fernández|88|PENDING|"
         },
@@ -220,9 +198,9 @@
           "text": "",
           "reason": "",
           "status": "VALID",
-          "facebookPostId": "mock-post-008",
-          "postedAt": "2026-09-18T22:09:42.890Z",
-          "occurrenceTime": "2026-09-18T22:09:42.888Z",
+          "facebookPostId": "mock-post-007",
+          "postedAt": "2026-09-19T13:30:04.850Z",
+          "occurrenceTime": "2026-09-19T13:30:04.847Z",
           "goalKey": null,
           "lastContentSignature": "EXTRA_TIME|1-1|||90|PENDING|"
         }
@@ -232,126 +210,44 @@
           "postId": "mock-post-002",
           "eventId": "401678123:KICKOFF",
           "type": "KICKOFF",
-          "createdAt": "2026-09-18T22:09:36.306Z",
-          "earliestUpdateAt": "2026-09-18T22:12:00.475Z"
+          "createdAt": "2026-09-19T13:29:58.265Z",
+          "earliestUpdateAt": "2026-09-19T13:33:05.624Z"
         },
         "mock-post-003": {
           "postId": "mock-post-003",
           "eventId": "401678123:GOAL:p1:m24:tteam:idx0",
           "type": "GOAL",
-          "createdAt": "2026-09-18T22:09:36.818Z",
-          "earliestUpdateAt": "2026-09-18T22:11:45.043Z",
-          "pendingUpdate": {
-            "postId": "mock-post-003",
-            "event": {
-              "eventId": "401678123:GOAL:p1:m24:tteam:idx0",
-              "eventKey": "401678123:GOAL:p1:m24:tteam:idx0",
-              "rawId": null,
-              "type": "GOAL",
-              "minute": 24,
-              "period": 1,
-              "teamId": null,
-              "player": "Bukayo Saka",
-              "assist": "Martin Ødegaard",
-              "scoreAfterEvent": {
-                "home": 1,
-                "away": 0
-              },
-              "homeScore": 1,
-              "awayScore": 0,
-              "ownGoal": false,
-              "isSecondYellow": false,
-              "description": "",
-              "text": "",
-              "reason": "",
-              "status": "VALID",
-              "facebookPostId": "mock-post-003",
-              "postedAt": "2026-09-18T22:09:36.818Z",
-              "occurrenceTime": "2026-09-18T22:09:36.816Z",
-              "goalKey": "24:p1:team:0",
-              "lastContentSignature": "GOAL|1-0|Bukayo Saka|Martin Ødegaard|24|VALID|"
-            },
-            "eventId": "401678123:GOAL:p1:m24:tteam:idx0",
-            "eventKey": "401678123:GOAL:p1:m24:tteam:idx0",
-            "goalKey": "24:p1:team:0",
-            "newContentSig": "GOAL|1-0|Bukayo Saka|Martin Ødegaard|24|VALID|",
-            "queuedAt": "2026-09-18T22:09:37.325Z",
-            "scheduledAt": "2026-09-18T22:11:45.043Z"
-          }
+          "createdAt": "2026-09-19T13:29:58.774Z",
+          "earliestUpdateAt": "2026-09-19T13:32:08.714Z",
+          "status": "DISALLOWED"
         },
         "mock-post-004": {
           "postId": "mock-post-004",
           "eventId": "401678123:RED_CARD:p1:m31:tteam:idx0",
           "type": "RED_CARD",
-          "createdAt": "2026-09-18T22:09:37.832Z",
-          "earliestUpdateAt": "2026-09-18T22:13:45.576Z"
+          "createdAt": "2026-09-19T13:29:59.795Z",
+          "earliestUpdateAt": "2026-09-19T13:34:14.407Z"
         },
         "mock-post-005": {
           "postId": "mock-post-005",
-          "eventId": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-          "type": "GOAL_DISALLOWED",
-          "createdAt": "2026-09-18T22:09:39.349Z",
-          "earliestUpdateAt": "2026-09-18T22:13:15.399Z",
-          "pendingUpdate": {
-            "postId": "mock-post-005",
-            "event": {
-              "eventId": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-              "eventKey": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-              "rawId": null,
-              "type": "GOAL_DISALLOWED",
-              "minute": 42,
-              "period": 1,
-              "teamId": null,
-              "player": null,
-              "assist": null,
-              "scoreAfterEvent": {
-                "home": 1,
-                "away": 0
-              },
-              "homeScore": 1,
-              "awayScore": 0,
-              "ownGoal": false,
-              "isSecondYellow": false,
-              "description": "Goal disallowed for offside following VAR review",
-              "text": "Goal disallowed for offside following VAR review",
-              "reason": "Goal disallowed for offside following VAR review",
-              "status": "DISALLOWED",
-              "facebookPostId": "mock-post-005",
-              "postedAt": "2026-09-18T22:09:39.349Z",
-              "occurrenceTime": "2026-09-18T22:09:39.346Z",
-              "goalKey": null,
-              "lastContentSignature": "GOAL_DISALLOWED|1-0|||42|DISALLOWED|Goal disallowed for offside following VAR review",
-              "disallowedReason": "Goal disallowed for offside following VAR review"
-            },
-            "eventId": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-            "eventKey": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-            "goalKey": null,
-            "newContentSig": "GOAL_DISALLOWED|1-0|||42|DISALLOWED|Goal disallowed for offside following VAR review",
-            "isDisallowed": true,
-            "queuedAt": "2026-09-18T22:09:39.855Z",
-            "scheduledAt": "2026-09-18T22:13:15.399Z"
-          }
+          "eventId": "401678123:HALF_TIME",
+          "type": "HALF_TIME",
+          "createdAt": "2026-09-19T13:30:02.824Z",
+          "earliestUpdateAt": "2026-09-19T13:33:10.702Z"
         },
         "mock-post-006": {
           "postId": "mock-post-006",
-          "eventId": "401678123:HALF_TIME",
-          "type": "HALF_TIME",
-          "createdAt": "2026-09-18T22:09:40.866Z",
-          "earliestUpdateAt": "2026-09-18T22:13:21.352Z"
+          "eventId": "401678123:GOAL:p1:m88:tteam:idx0",
+          "type": "GOAL",
+          "createdAt": "2026-09-19T13:30:03.837Z",
+          "earliestUpdateAt": "2026-09-19T13:33:42.035Z"
         },
         "mock-post-007": {
           "postId": "mock-post-007",
-          "eventId": "401678123:GOAL:p1:m88:tteam:idx0",
-          "type": "GOAL",
-          "createdAt": "2026-09-18T22:09:41.879Z",
-          "earliestUpdateAt": "2026-09-18T22:13:00.931Z"
-        },
-        "mock-post-008": {
-          "postId": "mock-post-008",
           "eventId": "401678123:EXTRA_TIME",
           "type": "EXTRA_TIME",
-          "createdAt": "2026-09-18T22:09:42.890Z",
-          "earliestUpdateAt": "2026-09-18T22:12:57.536Z"
+          "createdAt": "2026-09-19T13:30:04.850Z",
+          "earliestUpdateAt": "2026-09-19T13:32:36.820Z"
         }
       },
       "eventStates": {
@@ -378,8 +274,8 @@
           "reason": "",
           "status": "VALID",
           "facebookPostId": "mock-post-002",
-          "postedAt": "2026-09-18T22:09:36.306Z",
-          "occurrenceTime": "2026-09-18T22:09:35.185Z",
+          "postedAt": "2026-09-19T13:29:58.265Z",
+          "occurrenceTime": "2026-09-19T13:29:57.214Z",
           "goalKey": null,
           "lastContentSignature": "KICKOFF|0-0|||1|PENDING|"
         },
@@ -394,22 +290,24 @@
           "player": "Bukayo Saka",
           "assist": "Martin Ødegaard",
           "scoreAfterEvent": {
-            "home": 1,
+            "home": 0,
             "away": 0
           },
-          "homeScore": 1,
+          "homeScore": 0,
           "awayScore": 0,
           "ownGoal": false,
           "isSecondYellow": false,
           "description": "",
           "text": "",
           "reason": "",
-          "status": "VALID",
+          "status": "DISALLOWED",
           "facebookPostId": "mock-post-003",
-          "postedAt": "2026-09-18T22:09:36.818Z",
-          "occurrenceTime": "2026-09-18T22:09:36.816Z",
+          "postedAt": "2026-09-19T13:29:58.774Z",
+          "occurrenceTime": "2026-09-19T13:29:58.772Z",
           "goalKey": "24:p1:team:0",
-          "lastContentSignature": "GOAL|1-0|Bukayo Saka|Martin Ødegaard|24|VALID|"
+          "lastContentSignature": "GOAL|0-0|Bukayo Saka|Martin Ødegaard|24|DISALLOWED|",
+          "isDisallowed": true,
+          "disallowedReason": "Goal ruled out after review"
         },
         "401678123:RED_CARD:p1:m31:tteam:idx0": {
           "eventId": "401678123:RED_CARD:p1:m31:tteam:idx0",
@@ -434,39 +332,15 @@
           "reason": "",
           "status": "VALID",
           "facebookPostId": "mock-post-004",
-          "postedAt": "2026-09-18T22:09:37.832Z",
-          "occurrenceTime": "2026-09-18T22:09:37.830Z",
+          "postedAt": "2026-09-19T13:29:59.795Z",
+          "occurrenceTime": "2026-09-19T13:29:59.792Z",
           "goalKey": null,
           "lastContentSignature": "RED_CARD|1-0|Moisés Caicedo||31|PENDING|Violent conduct tackle"
         },
-        "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0": {
-          "eventId": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-          "eventKey": "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
-          "rawId": null,
-          "type": "GOAL_DISALLOWED",
-          "minute": 42,
-          "period": 1,
-          "teamId": null,
-          "player": null,
-          "assist": null,
-          "scoreAfterEvent": {
-            "home": 1,
-            "away": 0
-          },
-          "homeScore": 1,
-          "awayScore": 0,
-          "ownGoal": false,
-          "isSecondYellow": false,
-          "description": "Goal disallowed for offside following VAR review",
-          "text": "Goal disallowed for offside following VAR review",
-          "reason": "Goal disallowed for offside following VAR review",
-          "status": "DISALLOWED",
-          "facebookPostId": "mock-post-005",
-          "postedAt": "2026-09-18T22:09:39.349Z",
-          "occurrenceTime": "2026-09-18T22:09:39.346Z",
-          "goalKey": null,
-          "lastContentSignature": "GOAL_DISALLOWED|1-0|||42|DISALLOWED|Goal disallowed for offside following VAR review",
-          "disallowedReason": "Goal disallowed for offside following VAR review"
+        "DISALLOW_HANDLED:1:42:Goal disallowed for offside fo": {
+          "type": "DISALLOW_HANDLED",
+          "targetEventId": null,
+          "timestamp": 1789824601308
         },
         "401678123:HALF_TIME": {
           "eventId": "401678123:HALF_TIME",
@@ -479,10 +353,10 @@
           "player": null,
           "assist": null,
           "scoreAfterEvent": {
-            "home": 1,
+            "home": 0,
             "away": 0
           },
-          "homeScore": 1,
+          "homeScore": 0,
           "awayScore": 0,
           "ownGoal": false,
           "isSecondYellow": false,
@@ -490,11 +364,11 @@
           "text": "",
           "reason": "",
           "status": "VALID",
-          "facebookPostId": "mock-post-006",
-          "postedAt": "2026-09-18T22:09:40.866Z",
-          "occurrenceTime": "2026-09-18T22:09:40.864Z",
+          "facebookPostId": "mock-post-005",
+          "postedAt": "2026-09-19T13:30:02.824Z",
+          "occurrenceTime": "2026-09-19T13:30:02.821Z",
           "goalKey": null,
-          "lastContentSignature": "HALF_TIME|1-0|||45|PENDING|"
+          "lastContentSignature": "HALF_TIME|0-0|||45|PENDING|"
         },
         "401678123:GOAL:p1:m88:tteam:idx0": {
           "eventId": "401678123:GOAL:p1:m88:tteam:idx0",
@@ -518,9 +392,9 @@
           "text": "",
           "reason": "",
           "status": "VALID",
-          "facebookPostId": "mock-post-007",
-          "postedAt": "2026-09-18T22:09:41.879Z",
-          "occurrenceTime": "2026-09-18T22:09:41.876Z",
+          "facebookPostId": "mock-post-006",
+          "postedAt": "2026-09-19T13:30:03.837Z",
+          "occurrenceTime": "2026-09-19T13:30:03.834Z",
           "goalKey": "88:p1:team:0",
           "lastContentSignature": "GOAL|1-1|Cole Palmer|Enzo Fernández|88|PENDING|"
         },
@@ -546,9 +420,9 @@
           "text": "",
           "reason": "",
           "status": "VALID",
-          "facebookPostId": "mock-post-008",
-          "postedAt": "2026-09-18T22:09:42.890Z",
-          "occurrenceTime": "2026-09-18T22:09:42.888Z",
+          "facebookPostId": "mock-post-007",
+          "postedAt": "2026-09-19T13:30:04.850Z",
+          "occurrenceTime": "2026-09-19T13:30:04.847Z",
           "goalKey": null,
           "lastContentSignature": "EXTRA_TIME|1-1|||90|PENDING|"
         }
@@ -557,7 +431,6 @@
         "401678123:KICKOFF",
         "401678123:GOAL:p1:m24:tteam:idx0",
         "401678123:RED_CARD:p1:m31:tteam:idx0",
-        "401678123:GOAL_DISALLOWED:p1:m42:tteam:idx0",
         "401678123:HALF_TIME",
         "401678123:GOAL:p1:m88:tteam:idx0",
         "401678123:EXTRA_TIME"
@@ -569,15 +442,15 @@
           "assist": "Martin Ødegaard"
         },
         "88:p1:team:0": {
-          "postId": "mock-post-007",
+          "postId": "mock-post-006",
           "scorer": "Cole Palmer",
           "assist": "Enzo Fernández"
         }
       },
-      "lastUpdated": "2026-09-18T22:09:44.406Z",
+      "lastUpdated": "2026-09-19T13:30:06.367Z",
       "step": 2,
       "title": "Lineups announced (Pre-kickoff)",
-      "kickoff": "2026-09-18T22:09:35.185Z",
+      "kickoff": "2026-09-19T13:29:57.214Z",
       "lineups": {
         "home": [
           "David Raya",

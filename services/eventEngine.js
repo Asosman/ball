@@ -290,6 +290,17 @@ export function formatEventPost(event, currentMatch) {
       break;
 
     case 'PENALTY_SCORED':
+      if (event.status === 'DISALLOWED' || event.isDisallowed) {
+        eventHeader = '🚨 PENALTY GOAL DISALLOWED! VAR DECISION! 📺❌';
+        eventLine = '❌ Penalty goal officially ruled out after VAR review!';
+        if (event.player) {
+          detailLines.push(`👤 Player: ${makeUnicodeBold(event.player)}`);
+        }
+        if (event.disallowedReason || event.reason) {
+          detailLines.push(`📝 Reason: ${event.disallowedReason || event.reason}`);
+        }
+        break;
+      }
       eventHeader = '⚽ PENALTY SCORED! ICE COLD! 🥶🥅';
       eventLine = '🥅 Penalty converted successfully!';
       if (event.player) {
@@ -307,13 +318,13 @@ export function formatEventPost(event, currentMatch) {
       break;
 
     case 'GOAL_DISALLOWED':
-      eventHeader = '🚨 GOAL DISALLOWED! VAR INTERVENTION! 📺';
-      eventLine = '🚨 Goal officially disallowed by the referee!';
+      eventHeader = '🚨 GOAL DISALLOWED! VAR DECISION! 📺❌';
+      eventLine = '❌ Goal officially ruled out after VAR review!';
       if (event.player) {
-        detailLines.push(`👤 Player / Team: ${event.player}`);
+        detailLines.push(`👤 Player: ${makeUnicodeBold(event.player)}`);
       }
-      if (event.reason || event.text) {
-        detailLines.push(`📝 Reason: ${event.reason || event.text}`);
+      if (event.disallowedReason || event.reason || event.text) {
+        detailLines.push(`📝 Reason: ${event.disallowedReason || event.reason || event.text}`);
       }
       break;
 
@@ -701,6 +712,46 @@ export function compareMatchState(prevRecord, currentMatch) {
   }
 
   // In-game events from currentMatch.events (with strict whitelist filtering)
+  // Detect if live score dropped (e.g. scoreboard corrected/decremented due to VAR)
+  const prevH = prevRecord?.score?.home ?? prevRecord?.lastScore?.home ?? 0;
+  const prevA = prevRecord?.score?.away ?? prevRecord?.lastScore?.away ?? 0;
+  const currH = currentMatch.score?.home ?? 0;
+  const currA = currentMatch.score?.away ?? 0;
+
+  if (currH < prevH || currA < prevA) {
+    const droppedTeam = currH < prevH ? 'home' : 'away';
+    const activeGoals = Object.values(canonicalEvents).filter(
+      (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+             e.status !== 'DISALLOWED' && !e.isDisallowed
+    );
+    const targetGoal = [...activeGoals].reverse().find((g) => detectScoringTeam(g, currentMatch) === droppedTeam) || activeGoals[activeGoals.length - 1];
+
+    if (targetGoal && targetGoal.status !== 'DISALLOWED') {
+      logger.info(`[SCORE DROP DETECTED] Score reverted (${prevH}-${prevA} -> ${currH}-${currA}). Disallowing goal ${targetGoal.eventId}.`);
+      targetGoal.status = 'DISALLOWED';
+      targetGoal.isDisallowed = true;
+      targetGoal.disallowedReason = 'Goal ruled out after review';
+      targetGoal.scoreAfterEvent = { home: currH, away: currA };
+      targetGoal.homeScore = currH;
+      targetGoal.awayScore = currA;
+      targetGoal.lastContentSignature = getEventContentSignature(targetGoal);
+
+      if (targetGoal.facebookPostId) {
+        const editPayload = {
+          postId: targetGoal.facebookPostId,
+          event: { ...targetGoal },
+          eventId: targetGoal.eventId,
+          eventKey: targetGoal.eventId,
+          goalKey: targetGoal.goalKey,
+          newContentSig: targetGoal.lastContentSignature,
+          isDisallowed: true,
+        };
+        goalPostEdits.push(editPayload);
+        eventPostEdits.push(editPayload);
+      }
+    }
+  }
+
   for (const rawEv of currentMatch.events || []) {
     let ev = { ...rawEv };
 
@@ -733,6 +784,12 @@ export function compareMatchState(prevRecord, currentMatch) {
       } else {
         continue;
       }
+    }
+
+    // Disallowed goal normalization: if a goal has disallowed/status DISALLOWED, treat as GOAL_DISALLOWED
+    if (ev.type === 'GOAL' && (ev.disallowed === true || ev.isDisallowed === true || ev.status === 'DISALLOWED')) {
+      ev.type = 'GOAL_DISALLOWED';
+      ev.reason = ev.reason || ev.text || ev.description || 'Goal disallowed by referee / VAR review';
     }
 
     // Handle Penalty events: only PENALTY_SCORED is allowed (and penalties have NO assists)
@@ -783,6 +840,165 @@ export function compareMatchState(prevRecord, currentMatch) {
     const occKey = `${type}:${period}:${minute}:${teamId}`;
     const occIndex = occurrenceTracker.get(occKey) || 0;
     occurrenceTracker.set(occKey, occIndex + 1);
+
+    // =========================================================================
+    // DISALLOWED GOAL HANDLER:
+    // A disallowed goal must NEVER create a new post or enter newEvents.
+    // It must locate the previously recorded goal, mark it as DISALLOWED,
+    // revert the match scoreline, and immediately edit the existing goal's Facebook post.
+    // =========================================================================
+    const isDisallowCandidate =
+      type === 'GOAL_DISALLOWED' ||
+      Boolean(ev.disallowed) ||
+      Boolean(ev.isDisallowed) ||
+      ev.status === 'DISALLOWED';
+
+    if (isDisallowCandidate) {
+      const disallowSig = `DISALLOW_HANDLED:${ev.id || `${ev.period || 1}:${ev.minute || 0}:${(ev.reason || ev.text || ev.description || '').slice(0, 30)}`}`;
+      if (canonicalEvents[disallowSig]) {
+        continue;
+      }
+
+      let goalToDisallow = null;
+
+      // 1. Match by rawId / id / playId / eventId
+      if (ev.rawId || ev.id || ev.playId) {
+        const idStr = String(ev.rawId || ev.id || ev.playId);
+        goalToDisallow = Object.values(canonicalEvents).find(
+          (e) => (e.rawId === idStr || e.eventId === idStr || String(e.id) === idStr) &&
+                 (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed
+        );
+      }
+
+      // 2. Match by player name on an active goal
+      if (!goalToDisallow && ev.player) {
+        const pNorm = String(ev.player).toLowerCase().trim();
+        goalToDisallow = Object.values(canonicalEvents).find(
+          (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed &&
+                 e.player &&
+                 (String(e.player).toLowerCase().trim() === pNorm ||
+                  String(e.player).toLowerCase().includes(pNorm) ||
+                  pNorm.includes(String(e.player).toLowerCase().trim()))
+        );
+      }
+
+      // 3. Match by commentary text mentioning an active goal's player
+      if (!goalToDisallow && (ev.reason || ev.text || ev.description)) {
+        const fullText = (ev.reason || ev.text || ev.description).toLowerCase();
+        goalToDisallow = Object.values(canonicalEvents).find(
+          (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed &&
+                 e.player &&
+                 fullText.includes(String(e.player).toLowerCase().trim())
+        );
+      }
+
+      // 4. Match by closest active goal in the same period
+      if (!goalToDisallow) {
+        const activeGoalsInPeriod = Object.values(canonicalEvents).filter(
+          (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed &&
+                 (e.period || 1) === (ev.period || 1)
+        );
+        let closest = null;
+        let minDiff = Infinity;
+        for (const ag of activeGoalsInPeriod) {
+          const diff = Math.abs((ag.minute || 0) - (ev.minute || 0));
+          if (diff < minDiff) {
+            minDiff = diff;
+            closest = ag;
+          }
+        }
+        if (closest) goalToDisallow = closest;
+      }
+
+      // 5. Fallback: most recent active goal if within 10 minutes of disallow event
+      if (!goalToDisallow) {
+        const activeGoals = Object.values(canonicalEvents).filter(
+          (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed &&
+                 Math.abs((e.minute || 0) - (ev.minute || 0)) <= 10
+        );
+        if (activeGoals.length > 0) {
+          goalToDisallow = activeGoals[activeGoals.length - 1];
+        }
+      }
+
+      // Mark this disallow event as handled in canonical state to avoid reprocessing on future polls
+      canonicalEvents[disallowSig] = {
+        type: 'DISALLOW_HANDLED',
+        targetEventId: goalToDisallow?.eventId || null,
+        timestamp: Date.now(),
+      };
+
+      if (goalToDisallow) {
+        logger.info(`[GOAL DISALLOWED] Goal ${goalToDisallow.eventId} (${goalToDisallow.player || 'scorer'}) is officially disallowed.`);
+        goalToDisallow.status = 'DISALLOWED';
+        goalToDisallow.isDisallowed = true;
+        goalToDisallow.disallowedReason = ev.reason || ev.text || ev.description || 'Goal disallowed for offside following VAR review';
+
+        // Recalculate scoreline without this disallowed goal
+        const remainingGoals = Object.values(canonicalEvents)
+          .filter((e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+                         e.eventId !== goalToDisallow.eventId &&
+                         e.status !== 'DISALLOWED' && !e.isDisallowed)
+          .sort((a, b) => (a.minute || 0) - (b.minute || 0));
+
+        let recalculatedHome = 0;
+        let recalculatedAway = 0;
+        for (const rg of remainingGoals) {
+          const st = detectScoringTeam(rg, currentMatch);
+          const isOg = Boolean(rg.ownGoal || rg.type === 'OWN_GOAL');
+          if (st === 'home') {
+            if (isOg) recalculatedAway += 1;
+            else recalculatedHome += 1;
+          } else if (st === 'away') {
+            if (isOg) recalculatedHome += 1;
+            else recalculatedAway += 1;
+          }
+        }
+
+        currentMatch.score = { home: recalculatedHome, away: recalculatedAway };
+        goalToDisallow.scoreAfterEvent = { home: recalculatedHome, away: recalculatedAway };
+        goalToDisallow.homeScore = recalculatedHome;
+        goalToDisallow.awayScore = recalculatedAway;
+        goalToDisallow.lastContentSignature = getEventContentSignature(goalToDisallow);
+
+        if (goalToDisallow.facebookPostId) {
+          logger.info(`[GOAL DISALLOWED EDIT] Queuing Facebook post edit for ${goalToDisallow.facebookPostId} (${goalToDisallow.eventId})`);
+          const editPayload = {
+            postId: goalToDisallow.facebookPostId,
+            event: { ...goalToDisallow },
+            eventId: goalToDisallow.eventId,
+            eventKey: goalToDisallow.eventId,
+            goalKey: goalToDisallow.goalKey,
+            newContentSig: goalToDisallow.lastContentSignature,
+            isDisallowed: true,
+          };
+          goalPostEdits.push(editPayload);
+          eventPostEdits.push(editPayload);
+        }
+      } else {
+        const recentlyDisallowed = Object.values(canonicalEvents).find(
+          (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+                 (e.status === 'DISALLOWED' || e.isDisallowed) &&
+                 (e.period || 1) === (ev.period || 1)
+        );
+        if (recentlyDisallowed) {
+          logger.info(`[GOAL DISALLOWED] Goal ${recentlyDisallowed.eventId} was already marked DISALLOWED in current state.`);
+          if (ev.reason || ev.text || ev.description) {
+            recentlyDisallowed.disallowedReason = ev.reason || ev.text || ev.description;
+          }
+        } else {
+          logger.warn(`[GOAL DISALLOWED] Received disallowed goal notification (${ev.text || ev.reason}) but found no active goal to disallow.`);
+        }
+      }
+
+      // CRITICAL: NEVER push to newEvents or publish a new post for GOAL_DISALLOWED
+      continue;
+    }
 
     const generatedEventId = getCanonicalEventId(ev, fixtureId, occIndex);
 

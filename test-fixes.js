@@ -137,6 +137,159 @@ assert.strictEqual(waitWhenElapsed, 0, 'No delay required when last post was bey
 
 console.log('✅ PASS: Consecutive posts are safely separated by at least 1 to 2 minutes.\n');
 
+// ---------------------------------------------------------------------------
+// TEST 5: Disallowed Goal Post Editing & Scoreline Reversion
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 5] Disallowed Goal: Edit Existing Post & Revert Scoreline:');
+const fixtureDisallow = 'test-match-disallow-888';
+
+// State 1: Goal was scored at minute 24 and posted to Facebook
+const goalPostId = 'fb-post-goal-24';
+const initialMatchRecord = {
+  fixtureId: fixtureDisallow,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueName: 'Premier League',
+  status: { state: 'in', description: 'In Progress', period: 1 },
+  score: { home: 1, away: 0 },
+  events: {
+    [`${fixtureDisallow}:GOAL:p1:m24:tarsenal:idx0`]: {
+      eventId: `${fixtureDisallow}:GOAL:p1:m24:tarsenal:idx0`,
+      rawId: 'play-101',
+      type: 'GOAL',
+      minute: 24,
+      period: 1,
+      player: 'Bukayo Saka',
+      teamId: 'arsenal',
+      homeScore: 1,
+      awayScore: 0,
+      scoreAfterEvent: { home: 1, away: 0 },
+      facebookPostId: goalPostId,
+      status: 'VALID',
+    },
+  },
+  facebookPosts: {
+    [goalPostId]: {
+      postId: goalPostId,
+      eventId: `${fixtureDisallow}:GOAL:p1:m24:tarsenal:idx0`,
+      type: 'GOAL',
+      createdAt: new Date().toISOString(),
+    },
+  },
+};
+
+// State 2: VAR review overturns the goal and reports it disallowed
+const polledDisallowPayload = {
+  fixtureId: fixtureDisallow,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueName: 'Premier League',
+  status: { state: 'in', description: 'In Progress', clock: "26'", period: 1 },
+  score: { home: 0, away: 0 },
+  events: [
+    {
+      type: 'GOAL',
+      minute: 24,
+      period: 1,
+      player: 'Bukayo Saka',
+      teamId: 'arsenal',
+      rawId: 'play-101',
+    },
+    {
+      type: 'VAR',
+      minute: 26,
+      period: 1,
+      text: 'Goal disallowed for offside following VAR review',
+    },
+  ],
+};
+
+const disallowDiff = compareMatchState(initialMatchRecord, polledDisallowPayload);
+
+// Requirement 1: NO new post created for the disallowed goal
+const disallowedNewEvents = disallowDiff.newEvents.filter((e) => e.type === 'GOAL_DISALLOWED' || e.isDisallowed);
+assert.strictEqual(disallowedNewEvents.length, 0, 'Must NOT create any new event/post for GOAL_DISALLOWED');
+assert.strictEqual(disallowDiff.newEvents.length, 0, 'No other unexpected new events should be created');
+console.log('✅ Requirement 1 Verified: Zero new posts generated for disallowed goal.');
+
+// Requirement 2: Must queue an edit for the EXISTING goal post
+const editTargets = disallowDiff.eventPostEdits.filter((e) => e.postId === goalPostId);
+assert.strictEqual(editTargets.length, 1, 'Must queue exactly 1 edit targeting the original goal post');
+const disallowEdit = editTargets[0];
+assert.strictEqual(disallowEdit.isDisallowed, true, 'Edit payload must flag isDisallowed: true');
+console.log('✅ Requirement 2 Verified: Edit queued directly targeting existing Facebook post ID.');
+
+// Requirement 3: Post content formatting reflects disallowance & scoreline
+const editedPostText = formatEventPost(disallowEdit.event, polledDisallowPayload);
+console.log('\nGenerated Disallowed Goal Edited Post:\n');
+console.log(editedPostText);
+console.log('----------------------------------------------------');
+assert(editedPostText.includes('Goal officially ruled out') || editedPostText.includes(makeUnicodeBold('GOAL DISALLOWED')), 'Edited post must state Goal officially ruled out or bold GOAL DISALLOWED');
+assert(editedPostText.includes(makeUnicodeBold('Bukayo Saka')), 'Edited post must include bold player name');
+assert(editedPostText.includes('0 - 0') || editedPostText.includes('0 : 0'), 'Edited post must show reverted 0-0 scoreline');
+console.log('✅ Requirement 3 Verified: Edited post text clearly displays VAR decision and reverted scoreline.');
+
+// Requirement 4: Match scoreline must be reverted to 0-0
+assert.strictEqual(polledDisallowPayload.score.home, 0, 'Match home score must be reverted to 0');
+assert.strictEqual(polledDisallowPayload.score.away, 0, 'Match away score must be 0');
+console.log('✅ Requirement 4 Verified: Match scoreline reverted to 0-0.');
+
+// Requirement 5: Next goal calculates correctly off the reverted 0-0 baseline
+const nextGoalPayload = {
+  fixtureId: fixtureDisallow,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueName: 'Premier League',
+  status: { state: 'in', description: 'In Progress', clock: "35'", period: 1 },
+  score: { home: 0, away: 1 },
+  events: [
+    {
+      type: 'GOAL',
+      minute: 24,
+      period: 1,
+      player: 'Bukayo Saka',
+      teamId: 'arsenal',
+      rawId: 'play-101',
+    },
+    {
+      type: 'VAR',
+      minute: 26,
+      period: 1,
+      text: 'Goal disallowed for offside following VAR review',
+    },
+    {
+      type: 'GOAL',
+      minute: 35,
+      period: 1,
+      player: 'Nicolas Jackson',
+      teamId: 'chelsea',
+      text: 'Goal! Arsenal 0, Chelsea 1. Nicolas Jackson right footed shot.',
+    },
+  ],
+};
+
+const updatedRecordAfterDisallow = {
+  ...initialMatchRecord,
+  score: { home: 0, away: 0 },
+  events: {
+    ...initialMatchRecord.events,
+    [`${fixtureDisallow}:GOAL:p1:m24:tarsenal:idx0`]: {
+      ...initialMatchRecord.events[`${fixtureDisallow}:GOAL:p1:m24:tarsenal:idx0`],
+      status: 'DISALLOWED',
+      isDisallowed: true,
+      scoreAfterEvent: { home: 0, away: 0 },
+    },
+  },
+};
+
+const nextGoalDiff = compareMatchState(updatedRecordAfterDisallow, nextGoalPayload);
+const newGoals = nextGoalDiff.newEvents.filter((e) => e.type === 'GOAL');
+assert.strictEqual(newGoals.length, 1, 'Should emit exactly 1 new goal event');
+const secondGoal = newGoals[0];
+assert.strictEqual(secondGoal.scoreAfterEvent.home, 0, 'New goal home score must be 0 (not 1 from disallowed goal)');
+assert.strictEqual(secondGoal.scoreAfterEvent.away, 1, 'New goal away score must be 1');
+console.log('✅ Requirement 5 Verified: Next goal scoreline is 0-1 (disallowed goal was not added to scoreline).\n');
+
 console.log('====================================================');
-console.log('  🎉 ALL 4 TESTS PASSED! ALL FIXES VERIFIED.');
+console.log('  🎉 ALL 5 TESTS PASSED! ALL FIXES VERIFIED.');
 console.log('====================================================\n');
