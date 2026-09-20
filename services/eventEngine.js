@@ -285,7 +285,7 @@ export function formatEventPost(event, currentMatch) {
         detailLines.push(`🎯 Scorer: ${makeUnicodeBold(event.player)}`);
       }
       if (event.assist) {
-        detailLines.push(`🪄 Assist: ${event.assist} 🅰️`);
+        detailLines.push(`👟 Assist: ${event.assist}`);
       }
       break;
 
@@ -372,18 +372,49 @@ export function formatEventPost(event, currentMatch) {
   const customHashtags = buildMatchHashtags(currentMatch.homeName, currentMatch.awayName, currentMatch.leagueName);
   const boldHeader = makeUnicodeBold(eventHeader);
 
+  const isHalfTime = (type === 'HALF_TIME' || type === 'HALFTIME' || type === 'HT');
+  const isFullTime = (type === 'FULL_TIME' || type === 'FULLTIME' || type === 'FULL_TIME_PENDING_ET' || type === 'FT' || type === 'AFTER_EXTRA_TIME_OR_SHOOTOUT' || type === 'FULL_TIME_POST_ET');
+
+  if (isHalfTime) {
+    const sections = [
+      `⚡ ${boldHeader} ⚡`,
+      `━━━━━━━━━━━━━━━━━━━`,
+      `HT ${home} ${homeScore} - ${awayScore} ${away}`,
+    ];
+    if (detailLines.length > 0) {
+      sections.push(detailLines.join('\n'));
+    }
+    sections.push(`📝 Info: ${eventLine}`);
+    sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}\n${standardHashtags}`);
+    return sections.join('\n');
+  }
+
+  if (isFullTime) {
+    const sections = [
+      `⚡ ${boldHeader} ⚡`,
+      `━━━━━━━━━━━━━━━━━━━`,
+      `FT ${home} ${homeScore} - ${awayScore} ${away}`,
+    ];
+    if (detailLines.length > 0) {
+      sections.push(detailLines.join('\n'));
+    }
+    sections.push(`📝 Info: ${eventLine}`);
+    sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}\n${standardHashtags}`);
+    return sections.join('\n');
+  }
+
   const sections = [
     `⚡ ${boldHeader} ⚡`,
     `━━━━━━━━━━━━━━━━━━━`,
     `⏱️ Time: ${clock}`,
-    `📝 Info: ${eventLine}`,
-    `⚽ Score: ${home} ${homeScore} - ${awayScore} ${away}`
+    `⚽ Score: ${home} ${homeScore} - ${awayScore} ${away}`,
   ];
 
   if (detailLines.length > 0) {
     sections.push(detailLines.join('\n'));
   }
 
+  sections.push(`📝 Info: ${eventLine}`);
   sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}\n${standardHashtags}`);
 
   return sections.join('\n');
@@ -408,7 +439,22 @@ export function formatLineupPost(currentMatch, homeLineup, awayLineup) {
   const heading = makeUnicodeBold("OFFICIAL STARTING LINEUPS ARE OUT!");
   const vsBoldLine = `💥 ${homeBold} 🆚 ${awayBold}`;
 
-  return `🔥 ${heading} 📋⚽\n\n${vsBoldLine}\n━━━━━━━━━━━━━━━━━━━\n\n${homeSection}\n\n${awaySection}\n\n━━━━━━━━━━━━━━━━━━━\n👉 Who is winning this clash? Leave your predictions below! 👇\n\n${hashtags}\n${standardHashtags}`;
+  const top = [
+    `🔥 ${heading} 📋⚽`,
+    vsBoldLine,
+    `━━━━━━━━━━━━━━━━━━━`,
+    homeSection,
+  ].join('\n');
+
+  const bottom = [
+    awaySection,
+    `━━━━━━━━━━━━━━━━━━━`,
+    `👉 Who is winning this clash? Leave your predictions below! 👇`,
+    hashtags,
+    standardHashtags,
+  ].join('\n');
+
+  return `${top}\n\n${bottom}`;
 }
 
 /**
@@ -435,11 +481,11 @@ export function formatFixturesPost(matches, dateDisplay) {
     `━━━━━━━━━━━━━━━━━━━`,
     `📅 Date: ${dateDisplay}`,
     `📢 ${subtitleEmoji}`,
-    `🕐 All times are in West Africa Time (WAT)\n`,
+    `🕐 All times are in West Africa Time (WAT)`,
   ];
 
   for (const [league, groupMatches] of Object.entries(grouped)) {
-    lines.push(`🏆 ${makeUnicodeBold(league.toUpperCase())}\n`);
+    lines.push(`🏆 ${makeUnicodeBold(league.toUpperCase())}`);
     groupMatches.forEach((m) => {
       const homeBold = makeUnicodeBold(m.homeName);
       const awayBold = makeUnicodeBold(m.awayName);
@@ -450,14 +496,17 @@ export function formatFixturesPost(matches, dateDisplay) {
         lines.push(`${m.kickoffFormattedWAT || 'TBD'} ${flag} ${homeBold} vs ${awayBold}`);
       }
     });
-    lines.push('');
   }
 
   const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore #ViralMatch #FootballFans';
   const callToAction = isYesterday
     ? '💬 What do you think about the scorelines? 👇'
     : '💬 Drop your predictions and thoughts below! 👇';
-  lines.push(`━━━━━━━━━━━━━━━━━━━\n${callToAction}\n\n${standardHashtags}`);
+
+  lines.push(`━━━━━━━━━━━━━━━━━━━`);
+  lines.push(callToAction);
+  lines.push(standardHashtags);
+
   return lines.join('\n');
 }
 

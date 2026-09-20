@@ -29,7 +29,8 @@ export const COMPREHENSIVE_LEAGUES = [
   { slug: 'nor.1', name: 'Norwegian Eliteserien' },
   { slug: 'swe.1', name: 'Swedish Allsvenskan' },
   { slug: 'sau.1', name: 'Saudi Pro League' },
-  { slug: 'usa.1', name: 'Major League Soccer' },
+  { slug: 'usa.1', name: 'Major League Soccer (MLS)' },
+  { slug: 'mls', name: 'Major League Soccer (MLS)' },
 
   // Domestic Cups
   { slug: 'eng.fa', name: 'English FA Cup' },
@@ -343,7 +344,7 @@ export async function fetchTodaysMatches(targetDateWAT = null) {
       batch.map(async (league) => {
         competitionsChecked++;
         try {
-          let apiSlug = league.slug === 'sau.1' ? 'ksa.1' : league.slug;
+          let apiSlug = league.slug === 'sau.1' ? 'ksa.1' : (league.slug === 'mls' ? 'usa.1' : league.slug);
           if (apiSlug && apiSlug.startsWith('afc.champions')) {
             apiSlug = 'afc.champions';
           }

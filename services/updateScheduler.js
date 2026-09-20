@@ -5,14 +5,14 @@ import logger from '../utils/logger.js';
 export const MIN_UPDATE_DELAY_MS = 2 * 60 * 1000; // 2 minutes (120,000 ms)
 export const MAX_UPDATE_DELAY_MS = 5 * 60 * 1000; // 5 minutes (300,000 ms)
 
-// Configuration: At least 1 to 2 minutes separation between Facebook posts
-export const MIN_POST_SPACING_MS = 60 * 1000; // 1 minute (60,000 ms) minimum
-export const TARGET_POST_SPACING_MS = 65 * 1000; // 65 seconds (1.08 minutes) target
-export const MAX_POST_SPACING_MS = 120 * 1000; // 2 minutes (120,000 ms)
+// Configuration: At least 30 seconds to 1 minute separation between Facebook posts
+export const MIN_POST_SPACING_MS = 30 * 1000; // 30 seconds (30,000 ms) minimum
+export const TARGET_POST_SPACING_MS = 35 * 1000; // 35 seconds target
+export const MAX_POST_SPACING_MS = 60 * 1000; // 1 minute (60,000 ms) maximum
 
 /**
  * Calculates remaining cooldown milliseconds required before a new post can be published.
- * Ensures posts are spaced by at least 1 to 2 minutes.
+ * Ensures posts are spaced by at least 30 seconds to 1 minute.
  * @param {number|string|null} lastPostTime
  * @param {number} [targetSpacingMs=TARGET_POST_SPACING_MS]
  * @returns {number} remaining ms to wait (0 if ready)

@@ -208,11 +208,11 @@ export function formatTodayFixturesPost(matches: MatchEventSummary[], dateDispla
     `━━━━━━━━━━━━━━━━━━━`,
     `📅 Date: ${dateDisplay}`,
     `📢 ${subtitleEmoji}`,
-    `🕐 All times are in West Africa Time (WAT)\n`,
+    `🕐 All times are in West Africa Time (WAT)`,
   ];
 
   for (const [league, groupMatches] of Object.entries(grouped)) {
-    lines.push(`🏆 ${makeUnicodeBold(league.toUpperCase())}\n`);
+    lines.push(`🏆 ${makeUnicodeBold(league.toUpperCase())}`);
     groupMatches.forEach((m) => {
       const { home, away } = extractTeamNames(m);
       const homeBold = makeUnicodeBold(home);
@@ -221,13 +221,14 @@ export function formatTodayFixturesPost(matches: MatchEventSummary[], dateDispla
       const kickoffWAT = formatKickoffWAT(m.date);
       lines.push(`${kickoffWAT} ${flag} ${homeBold} vs ${awayBold}`);
     });
-    lines.push('');
   }
 
   const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore #ViralMatch #FootballFans';
   const callToAction = '💬 Drop your predictions and thoughts below! 👇';
 
-  lines.push(`━━━━━━━━━━━━━━━━━━━\n${callToAction}\n\n${standardHashtags}`);
+  lines.push(`━━━━━━━━━━━━━━━━━━━`);
+  lines.push(callToAction);
+  lines.push(standardHashtags);
   return lines.join('\n');
 }
 
@@ -252,11 +253,11 @@ export function formatYesterdayResultsPost(matches: MatchEventSummary[], dateDis
     `━━━━━━━━━━━━━━━━━━━`,
     `📅 Date: ${dateDisplay}`,
     `📢 ${subtitleEmoji}`,
-    `🕐 All times are in West Africa Time (WAT)\n`,
+    `🕐 All times are in West Africa Time (WAT)`,
   ];
 
   for (const [league, groupMatches] of Object.entries(grouped)) {
-    lines.push(`🏆 ${makeUnicodeBold(league.toUpperCase())}\n`);
+    lines.push(`🏆 ${makeUnicodeBold(league.toUpperCase())}`);
     groupMatches.forEach((m) => {
       const { home, away } = extractTeamNames(m);
       const { home: hScore, away: aScore } = extractScore(m);
@@ -265,13 +266,14 @@ export function formatYesterdayResultsPost(matches: MatchEventSummary[], dateDis
       const flag = getMatchFlag(m);
       lines.push(`FT ${flag} ${homeBold} ${hScore} : ${aScore} ${awayBold}`);
     });
-    lines.push('');
   }
 
   const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore #ViralMatch #FootballFans';
   const callToAction = '💬 What do you think about the scorelines? 👇';
 
-  lines.push(`━━━━━━━━━━━━━━━━━━━\n${callToAction}\n\n${standardHashtags}`);
+  lines.push(`━━━━━━━━━━━━━━━━━━━`);
+  lines.push(callToAction);
+  lines.push(standardHashtags);
   return lines.join('\n');
 }
 

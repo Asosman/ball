@@ -75,7 +75,7 @@ export const SUPPORTED_LEAGUES: LeagueInfo[] = [
   },
   {
     id: 'soccer-usa1',
-    name: 'Major League Soccer',
+    name: 'Major League Soccer (MLS)',
     sport: 'soccer',
     slug: 'usa.1',
     category: 'Americas',
@@ -242,6 +242,7 @@ export const MONITORED_LEAGUE_SLUGS = [
   'swe.1',
   'sau.1',
   'usa.1',
+  'mls',
   'eng.fa',
   'eng.league_cup',
   'esp.copa_del_rey',

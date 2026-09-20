@@ -24,11 +24,11 @@ class MonitoringManager {
     this.lastPollTimestamp = null;
     this.fullTimeGraceCycles = new Map(); // tracks full-time removal
     this.matchLocks = new Map(); // Per-match concurrency protection
-    this.publishQueueLock = Promise.resolve(); // Global lock enforcing 1-2 min post separation
+    this.publishQueueLock = Promise.resolve(); // Global lock enforcing 30s - 1 min post separation
   }
 
   /**
-   * Serializes Facebook post publishing with mandatory post spacing of at least 1–2 minutes.
+   * Serializes Facebook post publishing with mandatory post spacing of at least 30 seconds to 1 minute.
    * Ensures no two posts are ever published at the same time across any matches.
    * @param {() => Promise<string|null>} postTask
    * @returns {Promise<string|null>}
@@ -41,7 +41,7 @@ class MonitoringManager {
 
       if (waitMs > 0) {
         const elapsedSec = lastPostAt ? Math.round((Date.now() - lastPostAt) / 1000) : 0;
-        logger.info(`[POST SPACING] Enforcing 1–2 minute delay between posts (last post was ${elapsedSec}s ago). Waiting ${Math.round(waitMs / 1000)}s before next Facebook post...`);
+        logger.info(`[POST SPACING] Enforcing 30 seconds – 1 minute delay between posts (last post was ${elapsedSec}s ago). Waiting ${Math.round(waitMs / 1000)}s before next Facebook post...`);
         await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
 
@@ -278,7 +278,7 @@ class MonitoringManager {
         });
       }
 
-      // 5. Publish New Events with duplicate pre-check and 1-2 min post spacing
+      // 5. Publish New Events with duplicate pre-check and 30s - 1 min post spacing
       for (const ev of newEvents) {
         if (!isWhitelistedEvent(ev)) continue;
 

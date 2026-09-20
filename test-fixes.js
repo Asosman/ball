@@ -1,7 +1,8 @@
 // test-fixes.js
 import assert from 'assert';
-import { formatEventPost, compareMatchState, makeUnicodeBold } from './services/eventEngine.js';
+import { formatEventPost, formatLineupPost, formatFixturesPost, compareMatchState, makeUnicodeBold } from './services/eventEngine.js';
 import { getPostSpacingWaitMs, MIN_POST_SPACING_MS, TARGET_POST_SPACING_MS } from './services/updateScheduler.js';
+import { COMPREHENSIVE_LEAGUES } from './services/espn.js';
 
 console.log('====================================================');
 console.log('  RUNNING TEST SUITE FOR RECENT FIXES & IMPROVEMENTS');
@@ -114,14 +115,14 @@ assert.strictEqual(newHalfTimeEvents.length, 0, 'Should emit ZERO new half-time 
 console.log('✅ PASS: Half-time duplication is completely prevented.\n');
 
 // ---------------------------------------------------------------------------
-// TEST 4: Post Spacing Enforcement (At least 1 to 2 Minutes Delay)
+// TEST 4: Post Spacing Enforcement (30 seconds to 1 Minute Delay)
 // ---------------------------------------------------------------------------
-console.log('▶ [TEST 4] Post Spacing & Rate Limit Check (1 to 2 minutes):');
+console.log('▶ [TEST 4] Post Spacing & Rate Limit Check (30 seconds to 1 minute):');
 console.log(`- Minimum post spacing configured: ${MIN_POST_SPACING_MS / 1000}s`);
 console.log(`- Target post spacing configured: ${TARGET_POST_SPACING_MS / 1000}s`);
 
-assert(MIN_POST_SPACING_MS >= 60000, 'Minimum spacing must be at least 1 minute');
-assert(TARGET_POST_SPACING_MS >= 60000 && TARGET_POST_SPACING_MS <= 120000, 'Target spacing must be 1 to 2 minutes');
+assert(MIN_POST_SPACING_MS >= 30000, 'Minimum spacing must be at least 30 seconds');
+assert(TARGET_POST_SPACING_MS >= 30000 && TARGET_POST_SPACING_MS <= 60000, 'Target spacing must be 30 seconds to 1 minute');
 
 const now = Date.now();
 
@@ -130,12 +131,12 @@ const waitWhenRecent = getPostSpacingWaitMs(now - 15000, TARGET_POST_SPACING_MS)
 console.log(`- For a post made 15s ago: must wait ${Math.round(waitWhenRecent / 1000)}s before next post`);
 assert(waitWhenRecent > 0, 'Must enforce wait if last post was under target spacing');
 
-// Case B: A post occurred 90 seconds ago (more than 1 minute target)
-const waitWhenElapsed = getPostSpacingWaitMs(now - 90000, TARGET_POST_SPACING_MS);
-console.log(`- For a post made 90s ago: must wait ${waitWhenElapsed}ms (ready to post immediately)`);
+// Case B: A post occurred 45 seconds ago (more than target spacing)
+const waitWhenElapsed = getPostSpacingWaitMs(now - 45000, TARGET_POST_SPACING_MS);
+console.log(`- For a post made 45s ago: must wait ${waitWhenElapsed}ms (ready to post immediately)`);
 assert.strictEqual(waitWhenElapsed, 0, 'No delay required when last post was beyond target spacing');
 
-console.log('✅ PASS: Consecutive posts are safely separated by at least 1 to 2 minutes.\n');
+console.log('✅ PASS: Consecutive posts are safely separated by 30 seconds to 1 minute.\n');
 
 // ---------------------------------------------------------------------------
 // TEST 5: Disallowed Goal Post Editing & Scoreline Reversion
@@ -290,6 +291,121 @@ assert.strictEqual(secondGoal.scoreAfterEvent.home, 0, 'New goal home score must
 assert.strictEqual(secondGoal.scoreAfterEvent.away, 1, 'New goal away score must be 1');
 console.log('✅ Requirement 5 Verified: Next goal scoreline is 0-1 (disallowed goal was not added to scoreline).\n');
 
+// ---------------------------------------------------------------------------
+// TEST 6: Event Post Order: Heading -> Time -> Scoreboard -> Details -> Info & Shoe Assist Emoji
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 6] Event Post Order & Assist Shoe Emoji:');
+const goalWithAssist = {
+  type: 'GOAL',
+  player: 'Bukayo Saka',
+  assist: 'Martin Odegaard',
+  minute: 24,
+  period: 1,
+  homeScore: 1,
+  awayScore: 0,
+  scoreAfterEvent: { home: 1, away: 0 },
+};
+
+const goalPostFormatted = formatEventPost(goalWithAssist, matchContext);
+console.log('Goal Post Output:\n' + goalPostFormatted + '\n');
+
+// Verify shoe emoji is used for assist
+assert(goalPostFormatted.includes('👟 Assist: Martin Odegaard'), 'Assist must use the shoe emoji 👟');
+
+// Verify structure order: Heading -> Time -> Score -> Scorer/Assist -> Info
+const headingIndex = goalPostFormatted.indexOf(makeUnicodeBold('GOOOOALLLLL'));
+const timeIndex = goalPostFormatted.indexOf("⏱️ Time: 24'");
+const scoreIndex = goalPostFormatted.indexOf('⚽ Score:');
+const scorerIndex = goalPostFormatted.indexOf('🎯 Scorer:');
+const assistIndex = goalPostFormatted.indexOf('👟 Assist:');
+const infoIndex = goalPostFormatted.indexOf('📝 Info:');
+
+assert(headingIndex !== -1, 'Heading must exist');
+assert(timeIndex !== -1, 'Time must exist');
+assert(scoreIndex !== -1, 'Scoreboard must exist');
+assert(scorerIndex !== -1, 'Scorer must exist');
+assert(assistIndex !== -1, 'Assist must exist');
+assert(infoIndex !== -1, 'Info must exist');
+
+assert(headingIndex < timeIndex, 'Heading must appear before Time');
+assert(timeIndex < scoreIndex, 'Time must appear before Scoreboard');
+assert(scoreIndex < scorerIndex, 'Scoreboard must appear before Details (Scorer)');
+assert(scorerIndex < assistIndex, 'Scorer must appear before Assist');
+assert(assistIndex < infoIndex, 'Details must appear before Info');
+console.log('✅ PASS: Event post order is strictly: Heading -> Time -> Scoreboard -> Details -> Info with shoe emoji.\n');
+
+// ---------------------------------------------------------------------------
+// TEST 7: Half-Time & Full-Time Post Structure (No Time line, HT/FT Team A scoreline Team B)
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 7] Half-Time & Full-Time Post Structure:');
+const htEvent = {
+  type: 'HALF_TIME',
+  minute: 45,
+  period: 1,
+  homeScore: 1,
+  awayScore: 0,
+};
+const htPost = formatEventPost(htEvent, matchContext);
+console.log('Half-Time Post Output:\n' + htPost + '\n');
+
+assert(htPost.includes('HT Arsenal 1 - 0 Chelsea') || htPost.includes('HT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 1 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚'), 'HT must have HT team A scoreline Team B');
+assert(!htPost.includes('⏱️ Time:'), 'Half-time post must NOT show Time line');
+assert(htPost.includes('📝 Info:'), 'Half-time post must include Info line');
+
+const ftEvent = {
+  type: 'FULL_TIME',
+  minute: 90,
+  period: 2,
+  homeScore: 2,
+  awayScore: 1,
+};
+const ftPost = formatEventPost(ftEvent, matchContext);
+console.log('Full-Time Post Output:\n' + ftPost + '\n');
+
+assert(ftPost.includes('FT Arsenal 2 - 1 Chelsea') || ftPost.includes('FT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚'), 'FT must have FT team A scoreline Team B');
+assert(!ftPost.includes('⏱️ Time:'), 'Full-time post must NOT show Time line');
+assert(ftPost.includes('📝 Info:'), 'Full-time post must include Info line');
+console.log('✅ PASS: HT and FT posts conform strictly to requested template without Time line.\n');
+
+// ---------------------------------------------------------------------------
+// TEST 8: Lineup and Fixtures Spacing Rules (Single \n, \n\n only between team XI)
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 8] Spacing Rules for Lineups and Fixtures:');
+
+const lineupPost = formatLineupPost(
+  matchContext,
+  ['Raya', 'White', 'Saliba', 'Gabriel', 'Timber'],
+  ['Sanchez', 'James', 'Fofana', 'Colwill', 'Cucurella']
+);
+console.log('Lineup Post Output:\n' + lineupPost + '\n');
+
+// Split by \n\n
+const lineupDoubleNewlines = lineupPost.split('\n\n');
+assert.strictEqual(lineupDoubleNewlines.length, 2, 'Lineup post must have EXACTLY ONE double newline, between teamA XI and teamB XI');
+
+const fixturesSample = [
+  {
+    leagueName: 'English Premier League',
+    homeName: 'Arsenal',
+    awayName: 'Chelsea',
+    kickoffFormattedWAT: '17:30 WAT',
+    score: { home: 2, away: 1 },
+  },
+];
+const fixturesPost = formatFixturesPost(fixturesSample, 'Today');
+console.log('Fixtures Post Output:\n' + fixturesPost + '\n');
+assert(!fixturesPost.includes('\n\n'), 'Fixtures post must NOT contain wild spaces or double newlines (\\n\\n)');
+
+console.log('✅ PASS: Lineup and Fixtures spacing rules strictly followed.\n');
+
+// ---------------------------------------------------------------------------
+// TEST 9: MLS League Monitoring Verification
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 9] Major League Soccer (MLS) Monitoring:');
+const mlsInComprehensive = COMPREHENSIVE_LEAGUES.some((l) => l.slug === 'usa.1' || l.slug === 'mls');
+assert(mlsInComprehensive, 'MLS must be present in COMPREHENSIVE_LEAGUES');
+console.log('✅ PASS: MLS is properly registered in monitored leagues.\n');
+
 console.log('====================================================');
-console.log('  🎉 ALL 5 TESTS PASSED! ALL FIXES VERIFIED.');
+console.log('  🎉 ALL 9 TESTS PASSED! ALL FIXES VERIFIED.');
 console.log('====================================================\n');

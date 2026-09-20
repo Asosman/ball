@@ -18,6 +18,7 @@ const LEAGUE_HASHTAG_MAP = {
   'french ligue 1': ['#Ligue1'],
   'ligue 1': ['#Ligue1'],
   'major league soccer': ['#MLS'],
+  'major league soccer (mls)': ['#MLS'],
   'mls': ['#MLS'],
   'fa cup': ['#FACup'],
   'carabao cup': ['#CarabaoCup'],
