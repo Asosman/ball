@@ -43,6 +43,9 @@ export const ENGLAND_FLAG = '🏴󠁧󠁢󠁥󠁮󠁧󠁿';
  */
 export function getMatchFlag(match: any): string {
   if (!match) return '⚽';
+  if (match.countryFlag && match.countryFlag !== '⚽') return match.countryFlag;
+  if (match.flag && match.flag !== '⚽') return match.flag;
+
   const slug = (match.leagueSlug || match.slug || match.league || '').toLowerCase();
   const name = (match.leagueName || match.league || match.name || '').toLowerCase();
 
@@ -50,70 +53,23 @@ export function getMatchFlag(match: any): string {
   if (
     slug.includes('uefa.champions') ||
     slug.includes('uefa.europa') ||
+    slug.includes('uefa.wchampions') ||
     name.includes('champions league') ||
     name.includes('europa league') ||
-    name.includes('conference league')
+    name.includes('conference league') ||
+    name.includes('uefa')
   ) {
+    if (!name.includes('afc') && !name.includes('caf') && !name.includes('concacaf')) {
+      return '🇪🇺';
+    }
+  }
+
+  // Senior International UEFA
+  if (slug.startsWith('uefa.euro') || slug.startsWith('uefa.nations') || name.includes('nations league') || name.includes('euro')) {
     return '🇪🇺';
   }
 
-  // England: Must be 🏴󠁧󠁢󠁥󠁮󠁧󠁿
-  if (
-    slug.startsWith('eng.') ||
-    name.includes('premier league') ||
-    name.includes('fa cup') ||
-    name.includes('carabao') ||
-    name.includes('english')
-  ) {
-    return ENGLAND_FLAG;
-  }
-
-  // Spain
-  if (slug.startsWith('esp.') || name.includes('laliga') || name.includes('copa del rey') || name.includes('spanish')) {
-    return '🇪🇸';
-  }
-
-  // Germany
-  if (slug.startsWith('ger.') || name.includes('bundesliga') || name.includes('dfb-pokal') || name.includes('german')) {
-    return '🇩🇪';
-  }
-
-  // Italy
-  if (slug.startsWith('ita.') || name.includes('serie a') || name.includes('coppa italia') || name.includes('italian')) {
-    return '🇮🇹';
-  }
-
-  // France
-  if (slug.startsWith('fra.') || name.includes('ligue 1') || name.includes('coupe de france') || name.includes('french')) {
-    return '🇫🇷';
-  }
-
-  // Nigeria
-  if (slug.startsWith('nga.') || name.includes('npfl') || name.includes('nigeria')) {
-    return '🇳🇬';
-  }
-
-  // Portugal
-  if (slug.startsWith('por.') || name.includes('primeira liga')) {
-    return '🇵🇹';
-  }
-
-  // Netherlands
-  if (slug.startsWith('ned.') || name.includes('eredivisie')) {
-    return '🇳🇱';
-  }
-
-  // Saudi Arabia
-  if (slug.startsWith('sau.') || slug.startsWith('ksa.') || name.includes('saudi')) {
-    return '🇸🇦';
-  }
-
-  // USA / MLS
-  if (slug.startsWith('usa.') || name.includes('major league soccer') || name.includes('mls')) {
-    return '🇺🇸';
-  }
-
-  // World / International
+  // World / FIFA International
   if (slug.startsWith('fifa.') || name.includes('world cup') || name.includes('club world cup')) {
     return '🌍';
   }
@@ -124,8 +80,125 @@ export function getMatchFlag(match: any): string {
   }
 
   // South America / CONMEBOL
-  if (slug.startsWith('conmebol.') || name.includes('libertadores') || name.includes('copa america')) {
+  if (slug.startsWith('conmebol.') || name.includes('libertadores') || name.includes('sudamericana') || name.includes('copa america') || name.includes('copa américa')) {
     return '🌎';
+  }
+
+  // North/Central America / CONCACAF
+  if (slug.startsWith('concacaf.') || name.includes('gold cup') || name.includes('leagues cup')) {
+    return '🌎';
+  }
+
+  // Asia / AFC
+  if (slug.startsWith('afc.') || name.includes('asian cup') || name.includes('afc champions')) {
+    return '🌏';
+  }
+
+  // England: Must be 🏴󠁧󠁢󠁥󠁮󠁧󠁿, NOT 🇬🇧
+  if (
+    slug.startsWith('eng.') ||
+    name.includes('premier league') ||
+    name.includes('fa cup') ||
+    name.includes('carabao') ||
+    name.includes('efl') ||
+    name.includes('english')
+  ) {
+    return ENGLAND_FLAG;
+  }
+
+  // Scotland
+  if (slug.startsWith('sco.') || name.includes('scottish') || name.includes('spfl')) {
+    return '🏴󠁧󠁢󠁳󠁣󠁴󠁿';
+  }
+
+  // Wales
+  if (slug.startsWith('wal.') || name.includes('welsh') || name.includes('cymru')) {
+    return '🏴󠁧󠁢󠁷󠁬󠁳󠁿';
+  }
+
+  // Nigeria
+  if (slug.startsWith('nga.') || name.includes('npfl') || name.includes('nigeria')) {
+    return '🇳🇬';
+  }
+
+  // Spain
+  if (slug.startsWith('esp.') || name.includes('laliga') || name.includes('copa del rey') || name.includes('spanish') || name.includes('liga f')) {
+    return '🇪🇸';
+  }
+
+  // Germany
+  if (slug.startsWith('ger.') || name.includes('bundesliga') || name.includes('dfb-pokal') || name.includes('german')) {
+    return '🇩🇪';
+  }
+
+  // Italy
+  if (slug.startsWith('ita.') || name.includes('serie a') || (name.includes('serie b') && !name.includes('brazil') && !slug.startsWith('bra.')) || name.includes('coppa italia') || name.includes('italian')) {
+    return '🇮🇹';
+  }
+
+  // France
+  if (slug.startsWith('fra.') || name.includes('ligue 1') || name.includes('ligue 2') || name.includes('coupe de france') || name.includes('french')) {
+    return '🇫🇷';
+  }
+
+  // Portugal
+  if (slug.startsWith('por.') || name.includes('primeira liga') || name.includes('taca de portugal') || name.includes('taça de portugal') || name.includes('portuguese')) {
+    return '🇵🇹';
+  }
+
+  // Netherlands
+  if (slug.startsWith('ned.') || name.includes('eredivisie') || name.includes('dutch') || name.includes('knvb')) {
+    return '🇳🇱';
+  }
+
+  // Saudi Arabia - Checked before generic pro league
+  if (slug.startsWith('sau.') || slug.startsWith('ksa.') || name.includes('saudi')) {
+    return '🇸🇦';
+  }
+
+  // Belgium
+  if (slug.startsWith('bel.') || name.includes('belgian') || name.includes('jupiler')) {
+    return '🇧🇪';
+  }
+
+  // Turkey
+  if (slug.startsWith('tur.') || name.includes('super lig') || name.includes('süper lig') || name.includes('turkish')) {
+    return '🇹🇷';
+  }
+
+  // Greece
+  if (slug.startsWith('gre.') || name.includes('super league greece') || name.includes('greek')) {
+    return '🇬🇷';
+  }
+
+  // USA / MLS
+  if (slug.startsWith('usa.') || slug === 'mls' || name.includes('major league soccer') || name.includes('mls') || name.includes('usl') || name.includes('nwsl')) {
+    return '🇺🇸';
+  }
+
+  // Mexico
+  if (slug.startsWith('mex.') || name.includes('liga mx') || name.includes('mexic')) {
+    return '🇲🇽';
+  }
+
+  // Brazil
+  if (slug.startsWith('bra.') || name.includes('brazil') || name.includes('brasil') || name.includes('brasileir') || (name.includes('serie b') && name.includes('brazil')) || slug === 'bra.2') {
+    return '🇧🇷';
+  }
+
+  // Argentina
+  if (slug.startsWith('arg.') || name.includes('argentin') || name.includes('primera nacional') || name.includes('copa de la liga')) {
+    return '🇦🇷';
+  }
+
+  // Norway
+  if (slug.startsWith('nor.') || name.includes('eliteserien') || name.includes('norwegian')) {
+    return '🇳🇴';
+  }
+
+  // Sweden
+  if (slug.startsWith('swe.') || name.includes('allsvenskan') || name.includes('swedish')) {
+    return '🇸🇪';
   }
 
   return '⚽';
@@ -162,6 +235,61 @@ export function formatKickoffWAT(dateStr: string): string {
 }
 
 /**
+ * Detects if a match or league is a women's league or competition.
+ */
+export function isWomenCompetition(match: any): boolean {
+  if (!match) return false;
+  if (match.isWomen) return true;
+  const slug = String(match.leagueSlug || match.slug || match.league || '').toLowerCase();
+  const name = String(match.leagueName || match.league || match.name || '').toLowerCase();
+  const eventName = String(match.name || match.eventName || '').toLowerCase();
+  const note = String(match.note || match.notes || match.altGameNote || '').toLowerCase();
+
+  if (
+    slug.includes('.w.') ||
+    slug.endsWith('.w') ||
+    slug.includes('wchampions') ||
+    slug.includes('wwc') ||
+    slug.includes('weuro') ||
+    slug.includes('nwsl') ||
+    slug.includes('wsl')
+  ) {
+    return true;
+  }
+
+  if (
+    name.includes('women') ||
+    name.includes('femenil') ||
+    name.includes('femenina') ||
+    name.includes('femminile') ||
+    name.includes('féminine') ||
+    name.includes('feminine') ||
+    name.includes('frauen') ||
+    name.includes('liga f') ||
+    name.includes('nwsl') ||
+    name.includes('wsl') ||
+    eventName.includes('women') ||
+    eventName.includes('femenil') ||
+    note.includes('women')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Prefixes (W) to team names for women's competitions
+ */
+export function formatWomenTeamName(teamName: string, isWomen: boolean): string {
+  if (!teamName) return '';
+  if (!isWomen) return teamName;
+  if (teamName.startsWith('(W) ') || teamName.startsWith('(W)')) return teamName;
+  const clean = teamName.replace(/\s+(Women|Ladies|Fem|Femenil|Femmes|Femminile)$/i, '').trim();
+  return `(W) ${clean}`;
+}
+
+/**
  * Extracts clean home and away team names from a MatchEventSummary
  */
 export function extractTeamNames(match: MatchEventSummary): { home: string; away: string } {
@@ -169,9 +297,149 @@ export function extractTeamNames(match: MatchEventSummary): { home: string; away
   const homeComp = comp?.competitors?.find((c) => c.homeAway === 'home');
   const awayComp = comp?.competitors?.find((c) => c.homeAway === 'away');
 
-  const home = homeComp?.team?.displayName || homeComp?.displayName || 'Home Team';
-  const away = awayComp?.team?.displayName || awayComp?.displayName || 'Away Team';
+  const rawHome = homeComp?.team?.displayName || homeComp?.displayName || (match as any).homeName || 'Home Team';
+  const rawAway = awayComp?.team?.displayName || awayComp?.displayName || (match as any).awayName || 'Away Team';
+
+  const isWomen = isWomenCompetition(match);
+  const home = formatWomenTeamName(rawHome, isWomen);
+  const away = formatWomenTeamName(rawAway, isWomen);
   return { home, away };
+}
+
+/**
+ * Detects whether a competition / match belongs to the "Top Leagues" category (including Saudi Pro League).
+ * All other leagues in the world are classified into "Lower/World Leagues".
+ */
+export function isTopLeague(match: any): boolean {
+  if (!match) return false;
+  const slug = String(match.leagueSlug || match.slug || match.league || '').toLowerCase();
+  const name = String(match.leagueName || match.league || match.name || '').toLowerCase();
+
+  // 1. Explicit Saudi Pro League inclusion as requested
+  if (
+    slug.startsWith('sau.') ||
+    slug.startsWith('ksa.') ||
+    name.includes('saudi') ||
+    name.includes('roshn')
+  ) {
+    return true;
+  }
+
+  // 2. England Premier League, FA Cup, Carabao Cup
+  if (
+    slug === 'eng.1' ||
+    slug === 'eng.fa' ||
+    slug === 'eng.league_cup' ||
+    (name.includes('premier league') && !name.includes('women') && !name.includes('wsl') && !name.includes('egyptian') && !name.includes('cymru')) ||
+    name === 'english premier league' ||
+    name === 'fa cup' ||
+    name === 'carabao cup'
+  ) {
+    return true;
+  }
+
+  // 3. Spain LaLiga, Copa del Rey
+  if (
+    slug === 'esp.1' ||
+    slug === 'esp.copa_del_rey' ||
+    slug === 'esp.super_cup' ||
+    (name.includes('laliga') && !name.includes('2') && !name.includes('hypermotion')) ||
+    name.includes('spanish laliga') ||
+    name === 'copa del rey'
+  ) {
+    return true;
+  }
+
+  // 4. Italy Serie A, Coppa Italia
+  if (
+    slug === 'ita.1' ||
+    slug === 'ita.coppa_italia' ||
+    slug === 'ita.super_cup' ||
+    (name.includes('serie a') && !name.includes('brazil') && !name.includes('femminile')) ||
+    name.includes('italian serie a') ||
+    name === 'coppa italia'
+  ) {
+    return true;
+  }
+
+  // 5. Germany Bundesliga, DFB-Pokal
+  if (
+    slug === 'ger.1' ||
+    slug === 'ger.dfb_pokal' ||
+    slug === 'ger.super_cup' ||
+    (name.includes('bundesliga') && !name.includes('2.') && !name.includes('austrian') && !name.includes('frauen')) ||
+    name.includes('german bundesliga') ||
+    name === 'dfb-pokal'
+  ) {
+    return true;
+  }
+
+  // 6. France Ligue 1, Coupe de France
+  if (
+    slug === 'fra.1' ||
+    slug === 'fra.coupe_de_france' ||
+    slug === 'fra.super_cup' ||
+    (name.includes('ligue 1') && !name.includes('orange') && !name.includes('femmes')) ||
+    name.includes('french ligue 1') ||
+    name === 'coupe de france'
+  ) {
+    return true;
+  }
+
+  // 7. UEFA Tier 1 Competitions (Senior Men's)
+  if (
+    slug === 'uefa.champions' ||
+    slug === 'uefa.europa' ||
+    slug === 'uefa.europa.conf' ||
+    slug === 'uefa.super_cup' ||
+    name.includes('uefa champions league') ||
+    name.includes('uefa europa league') ||
+    name.includes('uefa conference league') ||
+    name.includes('uefa europa conference league') ||
+    name.includes('uefa super cup')
+  ) {
+    if (!name.includes('women') && !name.includes('youth') && !slug.includes('wchampions')) {
+      return true;
+    }
+  }
+
+  // 8. Major Senior International / Continental
+  if (
+    slug === 'fifa.world' ||
+    slug === 'fifa.cwc' ||
+    slug === 'uefa.euro' ||
+    slug === 'uefa.nations' ||
+    slug === 'caf.nations' ||
+    slug === 'conmebol.america' ||
+    slug === 'conmebol.libertadores' ||
+    name.includes('fifa world cup') ||
+    name.includes('club world cup') ||
+    name.includes('copa libertadores') ||
+    name.includes('copa america') ||
+    name.includes('copa américa') ||
+    name.includes('africa cup of nations') ||
+    name.includes('uefa nations league') ||
+    name.includes('uefa european championship')
+  ) {
+    if (!name.includes('women') && !name.includes('u20') && !name.includes('u17') && !name.includes('qualifying')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function splitMatchesByTier<T = any>(matches: T[] = []): { top: T[]; low: T[] } {
+  const top: T[] = [];
+  const low: T[] = [];
+  for (const m of matches) {
+    if (isTopLeague(m)) {
+      top.push(m);
+    } else {
+      low.push(m);
+    }
+  }
+  return { top, low };
 }
 
 /**
@@ -191,7 +459,11 @@ export function extractScore(match: MatchEventSummary): { home: number; away: nu
  * Formats Today's Fixtures Post for Facebook
  * Exactly matches the CLI's formatFixturesPost
  */
-export function formatTodayFixturesPost(matches: MatchEventSummary[], dateDisplay: string): string {
+export function formatTodayFixturesPost(
+  matches: MatchEventSummary[],
+  dateDisplay: string,
+  options: { category?: 'top' | 'low' } = {}
+): string {
   const grouped: Record<string, MatchEventSummary[]> = {};
   matches.forEach((m) => {
     const league = m.league || 'Football';
@@ -199,9 +471,21 @@ export function formatTodayFixturesPost(matches: MatchEventSummary[], dateDispla
     grouped[league].push(m);
   });
 
-  const titleText = "TODAY'S FOOTBALL FIXTURES!";
+  let titleText = "TODAY'S FOOTBALL FIXTURES!";
+  if (options.category === 'top') {
+    titleText = "TODAY'S FOOTBALL FIXTURES — TOP LEAGUES!";
+  } else if (options.category === 'low') {
+    titleText = "TODAY'S FOOTBALL FIXTURES — WORLD LEAGUES!";
+  }
   const titleEmoji = `🔥 ${makeUnicodeBold(titleText)} ⚽📅`;
-  const subtitleEmoji = `📢 ${makeUnicodeBold("Don't miss any of the action!")}`;
+
+  let subtitleText = "Don't miss any of the action!";
+  if (options.category === 'top') {
+    subtitleText = "Top Leagues & Saudi Pro League Action!";
+  } else if (options.category === 'low') {
+    subtitleText = "Global & Lower Leagues Worldwide!";
+  }
+  const subtitleEmoji = `📢 ${makeUnicodeBold(subtitleText)}`;
 
   const lines = [
     `⚡ ${titleEmoji} ⚡`,
@@ -233,10 +517,30 @@ export function formatTodayFixturesPost(matches: MatchEventSummary[], dateDispla
 }
 
 /**
+ * Creates the dedicated Today's Fixtures post for Top Leagues (including Saudi Pro League).
+ */
+export function formatTodayTopFixturesPost(matches: MatchEventSummary[], dateDisplay: string): string {
+  const topMatches = matches.some((m) => !isTopLeague(m)) ? matches.filter(isTopLeague) : matches;
+  return formatTodayFixturesPost(topMatches, dateDisplay, { category: 'top' });
+}
+
+/**
+ * Creates the dedicated Today's Fixtures post for Lower / Other Leagues worldwide.
+ */
+export function formatTodayLowFixturesPost(matches: MatchEventSummary[], dateDisplay: string): string {
+  const lowMatches = matches.some(isTopLeague) ? matches.filter((m) => !isTopLeague(m)) : matches;
+  return formatTodayFixturesPost(lowMatches, dateDisplay, { category: 'low' });
+}
+
+/**
  * Formats Yesterday's Results Post for Facebook
  * Exactly matches the CLI's formatFixturesPost for yesterday
  */
-export function formatYesterdayResultsPost(matches: MatchEventSummary[], dateDisplay: string): string {
+export function formatYesterdayResultsPost(
+  matches: MatchEventSummary[],
+  dateDisplay: string,
+  options: { category?: 'top' | 'low' } = {}
+): string {
   const grouped: Record<string, MatchEventSummary[]> = {};
   matches.forEach((m) => {
     const league = m.league || 'Football';
@@ -244,9 +548,21 @@ export function formatYesterdayResultsPost(matches: MatchEventSummary[], dateDis
     grouped[league].push(m);
   });
 
-  const titleText = 'RESULTS ARE IN!';
+  let titleText = 'RESULTS ARE IN!';
+  if (options.category === 'top') {
+    titleText = "YESTERDAY'S RESULTS — TOP LEAGUES!";
+  } else if (options.category === 'low') {
+    titleText = "YESTERDAY'S RESULTS — WORLD LEAGUES!";
+  }
   const titleEmoji = `🏆 ${makeUnicodeBold(titleText)} ⚽🔥`;
-  const subtitleEmoji = `📅 ${makeUnicodeBold("Yesterday's Final Scores")}`;
+
+  let subtitleText = "Yesterday's Final Scores";
+  if (options.category === 'top') {
+    subtitleText = 'Top Leagues & Saudi Pro League Final Scores';
+  } else if (options.category === 'low') {
+    subtitleText = 'Global & Lower Leagues Final Scores';
+  }
+  const subtitleEmoji = `📅 ${makeUnicodeBold(subtitleText)}`;
 
   const lines = [
     `⚡ ${titleEmoji} ⚡`,
@@ -275,6 +591,22 @@ export function formatYesterdayResultsPost(matches: MatchEventSummary[], dateDis
   lines.push(callToAction);
   lines.push(standardHashtags);
   return lines.join('\n');
+}
+
+/**
+ * Creates the dedicated Yesterday's Results post for Top Leagues (including Saudi Pro League).
+ */
+export function formatYesterdayTopResultsPost(matches: MatchEventSummary[], dateDisplay: string): string {
+  const topMatches = matches.some((m) => !isTopLeague(m)) ? matches.filter(isTopLeague) : matches;
+  return formatYesterdayResultsPost(topMatches, dateDisplay, { category: 'top' });
+}
+
+/**
+ * Creates the dedicated Yesterday's Results post for Lower / Other Leagues worldwide.
+ */
+export function formatYesterdayLowResultsPost(matches: MatchEventSummary[], dateDisplay: string): string {
+  const lowMatches = matches.some(isTopLeague) ? matches.filter((m) => !isTopLeague(m)) : matches;
+  return formatYesterdayResultsPost(lowMatches, dateDisplay, { category: 'low' });
 }
 
 export interface PublishedPostRecord {

@@ -27,7 +27,12 @@ import {
 import { MatchEventSummary } from '../types';
 import {
   formatTodayFixturesPost,
+  formatTodayTopFixturesPost,
+  formatTodayLowFixturesPost,
   formatYesterdayResultsPost,
+  formatYesterdayTopResultsPost,
+  formatYesterdayLowResultsPost,
+  splitMatchesByTier,
   publishToFacebook,
   getPublishedPosts,
   clearPublishedPosts,
@@ -49,6 +54,14 @@ interface CliConsoleHubProps {
 }
 
 type SubTab = 'publisher' | 'monitor' | 'simulation' | 'terminal' | 'history';
+type PostMode =
+  | 'today_top'
+  | 'today_low'
+  | 'today_all'
+  | 'yesterday_top'
+  | 'yesterday_low'
+  | 'yesterday_all'
+  | 'yesterday';
 
 export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
   todayMatches,
@@ -60,8 +73,31 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('publisher');
   const { todayFormattedDisplay, yesterdayFormattedDisplay } = useMemo(() => getWATDates(), []);
 
+  // Split today's matches into Top Tier (including Saudi Pro League) and World / Lower Tier
+  const { top: topTodayMatches, low: lowTodayMatches } = useMemo(
+    () => splitMatchesByTier(todayMatches),
+    [todayMatches]
+  );
+
+  // Split yesterday's matches into Top Tier (including Saudi Pro League) and World / Lower Tier
+  const { top: topYesterdayMatches, low: lowYesterdayMatches } = useMemo(
+    () => splitMatchesByTier(yesterdayMatches),
+    [yesterdayMatches]
+  );
+
+  // Group matches by league for clean league-separated monitoring selection
+  const groupedTodayMatches = useMemo<Record<string, MatchEventSummary[]>>(() => {
+    const groups: Record<string, MatchEventSummary[]> = {};
+    todayMatches.forEach((m) => {
+      const league = m.league || 'Other Competitions';
+      if (!groups[league]) groups[league] = [];
+      groups[league].push(m);
+    });
+    return groups;
+  }, [todayMatches]);
+
   // Publisher state
-  const [postMode, setPostMode] = useState<'today' | 'yesterday'>('today');
+  const [postMode, setPostMode] = useState<PostMode>('today_top');
   const [postText, setPostText] = useState<string>('');
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [publishResult, setPublishResult] = useState<{
@@ -102,15 +138,37 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
 
   // Generate initial post text when postMode changes or matches load
   useEffect(() => {
-    if (postMode === 'today') {
+    if (postMode === 'today_top') {
+      const text = formatTodayTopFixturesPost(topTodayMatches, todayFormattedDisplay);
+      setPostText(text);
+    } else if (postMode === 'today_low') {
+      const text = formatTodayLowFixturesPost(lowTodayMatches, todayFormattedDisplay);
+      setPostText(text);
+    } else if (postMode === 'today_all') {
       const text = formatTodayFixturesPost(todayMatches, todayFormattedDisplay);
+      setPostText(text);
+    } else if (postMode === 'yesterday_top') {
+      const text = formatYesterdayTopResultsPost(topYesterdayMatches, yesterdayFormattedDisplay);
+      setPostText(text);
+    } else if (postMode === 'yesterday_low') {
+      const text = formatYesterdayLowResultsPost(lowYesterdayMatches, yesterdayFormattedDisplay);
       setPostText(text);
     } else {
       const text = formatYesterdayResultsPost(yesterdayMatches, yesterdayFormattedDisplay);
       setPostText(text);
     }
     setPublishResult(null);
-  }, [postMode, todayMatches, yesterdayMatches, todayFormattedDisplay, yesterdayFormattedDisplay]);
+  }, [
+    postMode,
+    todayMatches,
+    topTodayMatches,
+    lowTodayMatches,
+    yesterdayMatches,
+    topYesterdayMatches,
+    lowYesterdayMatches,
+    todayFormattedDisplay,
+    yesterdayFormattedDisplay,
+  ]);
 
   // Handle Simulation auto-play
   useEffect(() => {
@@ -173,7 +231,7 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
     setIsPublishing(true);
     setPublishResult(null);
 
-    const type = postMode === 'today' ? 'TODAY_FIXTURES' : 'YESTERDAY_RESULTS';
+    const type = postMode.startsWith('yesterday') ? 'YESTERDAY_RESULTS' : 'TODAY_FIXTURES';
     const res = await publishToFacebook(postText, type);
     setIsPublishing(false);
     setPublishResult(res);
@@ -199,6 +257,102 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
         },
       ]);
     }
+  };
+
+  // Publish Both Posts for Today: Post 1 for Top Leagues (including Saudi Pro League) and Post 2 for World/Lower Leagues
+  const handlePublishBoth = async () => {
+    setIsPublishing(true);
+    setPublishResult(null);
+
+    const post1Text = formatTodayTopFixturesPost(topTodayMatches, todayFormattedDisplay);
+    const post2Text = formatTodayLowFixturesPost(lowTodayMatches, todayFormattedDisplay);
+
+    let res1: any = { success: false };
+    let res2: any = { success: false };
+
+    if (topTodayMatches.length > 0) {
+      res1 = await publishToFacebook(post1Text, 'TODAY_FIXTURES');
+    }
+    if (lowTodayMatches.length > 0) {
+      res2 = await publishToFacebook(post2Text, 'TODAY_FIXTURES');
+    }
+
+    setIsPublishing(false);
+    setPublishedHistory(getPublishedPosts());
+
+    const overallSuccess =
+      (topTodayMatches.length === 0 || res1.success) &&
+      (lowTodayMatches.length === 0 || res2.success);
+
+    setPublishResult({
+      success: overallSuccess,
+      postId: [res1.postId, res2.postId].filter(Boolean).join(', '),
+      isSimulated: res1.isSimulated || res2.isSimulated,
+      error: !overallSuccess
+        ? res1.error || res2.error || 'Failed to publish one or both posts'
+        : undefined,
+    });
+
+    setTerminalLogs((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        text: `[FACEBOOK 2 TODAY POSTS COMPLETED] Post 1 (Top Leagues & Saudi): ${
+          res1.success ? `Success (ID: ${res1.postId})` : 'Skipped/Error'
+        }. Post 2 (World / Lower Leagues): ${
+          res2.success ? `Success (ID: ${res2.postId})` : 'Skipped/Error'
+        }.`,
+        type: overallSuccess ? 'success' : 'warn',
+      },
+    ]);
+  };
+
+  // Publish Both Posts for Yesterday: Post 1 for Top Leagues (including Saudi Pro League) and Post 2 for World/Lower Leagues
+  const handlePublishBothYesterday = async () => {
+    setIsPublishing(true);
+    setPublishResult(null);
+
+    const post1Text = formatYesterdayTopResultsPost(topYesterdayMatches, yesterdayFormattedDisplay);
+    const post2Text = formatYesterdayLowResultsPost(lowYesterdayMatches, yesterdayFormattedDisplay);
+
+    let res1: any = { success: false };
+    let res2: any = { success: false };
+
+    if (topYesterdayMatches.length > 0) {
+      res1 = await publishToFacebook(post1Text, 'YESTERDAY_RESULTS');
+    }
+    if (lowYesterdayMatches.length > 0) {
+      res2 = await publishToFacebook(post2Text, 'YESTERDAY_RESULTS');
+    }
+
+    setIsPublishing(false);
+    setPublishedHistory(getPublishedPosts());
+
+    const overallSuccess =
+      (topYesterdayMatches.length === 0 || res1.success) &&
+      (lowYesterdayMatches.length === 0 || res2.success);
+
+    setPublishResult({
+      success: overallSuccess,
+      postId: [res1.postId, res2.postId].filter(Boolean).join(', '),
+      isSimulated: res1.isSimulated || res2.isSimulated,
+      error: !overallSuccess
+        ? res1.error || res2.error || 'Failed to publish one or both yesterday posts'
+        : undefined,
+    });
+
+    setTerminalLogs((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        text: `[FACEBOOK 2 YESTERDAY POSTS COMPLETED] Post 1 (Top Leagues & Saudi): ${
+          res1.success ? `Success (ID: ${res1.postId})` : 'Skipped/Error'
+        }. Post 2 (World / Lower Leagues): ${
+          res2.success ? `Success (ID: ${res2.postId})` : 'Skipped/Error'
+        }.`,
+        type: overallSuccess ? 'success' : 'warn',
+      },
+    ]);
   };
 
   // Copy to clipboard
@@ -244,11 +398,19 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
           {
             id: String(Date.now()),
             text: `Available CLI Commands:
-  • post            - Format & preview today's fixtures Facebook post
-  • post_yesterday  - Format & preview yesterday's results Facebook post
+  • post            - Format & publish both Top Leagues & World Leagues posts (today)
+  • post_top        - Format & preview Top Leagues (today, including Saudi Pro League)
+  • post_low        - Format & preview World & Lower Leagues (today)
+  • post_all        - Format & preview all fixtures combined (today)
+  • post_yesterday  - Format & publish both Top Leagues & World Leagues posts (yesterday)
+  • post_yesterday_top - Format & preview yesterday Top Leagues (incl. Saudi Pro League)
+  • post_yesterday_low - Format & preview yesterday World & Lower Leagues
+  • post_yesterday_all - Format & preview all combined yesterday results
   • publish         - Publish current formatted post to Facebook
+  • publish_both    - Publish both Top and World League posts sequentially (today)
+  • publish_both_yesterday - Publish both Top and World League posts sequentially (yesterday)
   • monitor         - View & manage monitored matches queue
-  • both            - Auto-pilot: Post fixtures & start live monitoring
+  • both            - Auto-pilot: Publish fixtures & start live monitoring
   • yesterday       - Display yesterday's match results table
   • today           - Display today's match fixtures table
   • sim             - Open match lifecycle simulation (Arsenal vs Chelsea)
@@ -261,26 +423,90 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
         break;
 
       case 'post':
-        setPostMode('today');
+      case 'post_both':
+      case 'post-both':
+        setActiveSubTab('publisher');
+        handlePublishBoth();
+        break;
+
+      case 'post_top':
+      case 'post-top':
+        setPostMode('today_top');
         setActiveSubTab('publisher');
         setTerminalLogs((prev) => [
           ...prev,
-          { id: String(Date.now()), text: `Formatted today's fixtures for ${todayMatches.length} matches. Switched to Publisher preview.`, type: 'success' },
+          { id: String(Date.now()), text: `Formatted Top Leagues fixtures (${topTodayMatches.length} matches, including Saudi Pro League). Switched to Publisher preview.`, type: 'success' },
+        ]);
+        break;
+
+      case 'post_low':
+      case 'post-low':
+        setPostMode('today_low');
+        setActiveSubTab('publisher');
+        setTerminalLogs((prev) => [
+          ...prev,
+          { id: String(Date.now()), text: `Formatted World / Lower Leagues fixtures (${lowTodayMatches.length} matches). Switched to Publisher preview.`, type: 'success' },
+        ]);
+        break;
+
+      case 'post_all':
+      case 'post-all':
+        setPostMode('today_all');
+        setActiveSubTab('publisher');
+        setTerminalLogs((prev) => [
+          ...prev,
+          { id: String(Date.now()), text: `Formatted all combined fixtures (${todayMatches.length} matches). Switched to Publisher preview.`, type: 'success' },
         ]);
         break;
 
       case 'post_yesterday':
-      case 'post-yesterday':
-        setPostMode('yesterday');
+      case 'post_yesterday_both':
+      case 'post-yesterday-both':
+        setActiveSubTab('publisher');
+        handlePublishBothYesterday();
+        break;
+
+      case 'post_yesterday_top':
+      case 'post-yesterday-top':
+        setPostMode('yesterday_top');
         setActiveSubTab('publisher');
         setTerminalLogs((prev) => [
           ...prev,
-          { id: String(Date.now()), text: `Formatted yesterday's results for ${yesterdayMatches.length} matches. Switched to Publisher preview.`, type: 'success' },
+          { id: String(Date.now()), text: `Formatted yesterday Top Leagues results (${topYesterdayMatches.length} matches, including Saudi Pro League). Switched to Publisher preview.`, type: 'success' },
+        ]);
+        break;
+
+      case 'post_yesterday_low':
+      case 'post-yesterday-low':
+        setPostMode('yesterday_low');
+        setActiveSubTab('publisher');
+        setTerminalLogs((prev) => [
+          ...prev,
+          { id: String(Date.now()), text: `Formatted yesterday World / Lower Leagues results (${lowYesterdayMatches.length} matches). Switched to Publisher preview.`, type: 'success' },
+        ]);
+        break;
+
+      case 'post_yesterday_all':
+      case 'post-yesterday-all':
+        setPostMode('yesterday_all');
+        setActiveSubTab('publisher');
+        setTerminalLogs((prev) => [
+          ...prev,
+          { id: String(Date.now()), text: `Formatted all combined yesterday results (${yesterdayMatches.length} matches). Switched to Publisher preview.`, type: 'success' },
         ]);
         break;
 
       case 'publish':
         handlePublish();
+        break;
+
+      case 'publish_both':
+        handlePublishBoth();
+        break;
+
+      case 'publish_both_yesterday':
+      case 'publish_yesterday_both':
+        handlePublishBothYesterday();
         break;
 
       case 'monitor':
@@ -292,13 +518,13 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
         break;
 
       case 'both':
-        setPostMode('today');
+        setPostMode('today_top');
         setActiveSubTab('publisher');
         setIsMonitoringActive(true);
-        handlePublish();
+        handlePublishBoth();
         setTerminalLogs((prev) => [
           ...prev,
-          { id: String(Date.now()), text: `[AUTO-PILOT] Initiated Facebook fixtures publish and started live monitoring cycle!`, type: 'success' },
+          { id: String(Date.now()), text: `[AUTO-PILOT] Initiated Facebook two-post fixtures publish and started live monitoring cycle!`, type: 'success' },
         ]);
         break;
 
@@ -475,10 +701,10 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
             <button
               id="cli-btn-both"
               onClick={() => {
-                setPostMode('today');
+                setPostMode('today_top');
                 setActiveSubTab('publisher');
                 setIsMonitoringActive(true);
-                handlePublish();
+                handlePublishBoth();
               }}
               className="p-2 rounded-lg border bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700 text-left transition-all"
             >
@@ -504,11 +730,11 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
             <button
               id="cli-btn-post-yesterday"
               onClick={() => {
-                setPostMode('yesterday');
+                setPostMode('yesterday_top');
                 setActiveSubTab('publisher');
               }}
               className={`p-2 rounded-lg border text-left transition-all ${
-                activeSubTab === 'publisher' && postMode === 'yesterday'
+                activeSubTab === 'publisher' && postMode.startsWith('yesterday')
                   ? 'bg-purple-950/60 border-purple-600 text-white'
                   : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-700'
               }`}
@@ -517,7 +743,7 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
                 <span>5. 📤</span>
                 <span>Post Results</span>
               </div>
-              <p className="text-[10px] text-neutral-400 mt-0.5 truncate">Post yesterday to FB</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5 truncate">Post yesterday (2 posts)</p>
             </button>
 
             <button
@@ -614,38 +840,114 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
                 <span className="text-xs font-normal text-neutral-400">WAT (Africa/Lagos)</span>
               </h3>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  id="tab-mode-today"
-                  onClick={() => setPostMode('today')}
-                  className={`p-3 rounded-xl border text-left transition-all ${
-                    postMode === 'today'
-                      ? 'bg-red-950/70 border-red-500 text-white shadow-sm'
-                      : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 font-bold text-xs">
-                    <Clock className="w-3.5 h-3.5 text-red-400" />
-                    <span>Today's Fixtures</span>
-                  </div>
-                  <p className="text-[11px] text-neutral-400 mt-1">{todayMatches.length} matches scheduled</p>
-                </button>
+              <div className="space-y-2.5">
+                <div>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Today's Fixtures ({todayFormattedDisplay})</span>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <button
+                      id="tab-mode-today-top"
+                      onClick={() => setPostMode('today_top')}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        postMode === 'today_top'
+                          ? 'bg-red-950/70 border-red-500 text-white shadow-sm'
+                          : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <Clock className="w-3.5 h-3.5 text-red-400" />
+                        <span className="truncate">Top Leagues + Saudi</span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">{topTodayMatches.length} matches (Post 1)</p>
+                    </button>
 
-                <button
-                  id="tab-mode-yesterday"
-                  onClick={() => setPostMode('yesterday')}
-                  className={`p-3 rounded-xl border text-left transition-all ${
-                    postMode === 'yesterday'
-                      ? 'bg-red-950/70 border-red-500 text-white shadow-sm'
-                      : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5 font-bold text-xs">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-red-400" />
-                    <span>Yesterday's Results</span>
+                    <button
+                      id="tab-mode-today-low"
+                      onClick={() => setPostMode('today_low')}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        postMode === 'today_low'
+                          ? 'bg-red-950/70 border-red-500 text-white shadow-sm'
+                          : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                        <span className="truncate">World / Lower Leagues</span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">{lowTodayMatches.length} matches (Post 2)</p>
+                    </button>
                   </div>
-                  <p className="text-[11px] text-neutral-400 mt-1">{yesterdayMatches.length} matches completed</p>
-                </button>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Yesterday's Results ({yesterdayFormattedDisplay})</span>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    <button
+                      id="tab-mode-yesterday-top"
+                      onClick={() => setPostMode('yesterday_top')}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        postMode === 'yesterday_top'
+                          ? 'bg-red-950/70 border-red-500 text-white shadow-sm'
+                          : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="truncate">Top Leagues + Saudi</span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">{topYesterdayMatches.length} matches (Post 1)</p>
+                    </button>
+
+                    <button
+                      id="tab-mode-yesterday-low"
+                      onClick={() => setPostMode('yesterday_low')}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        postMode === 'yesterday_low'
+                          ? 'bg-red-950/70 border-red-500 text-white shadow-sm'
+                          : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-teal-400" />
+                        <span className="truncate">World / Lower Leagues</span>
+                      </div>
+                      <p className="text-[10px] text-neutral-400 mt-0.5">{lowYesterdayMatches.length} matches (Post 2)</p>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-0.5">
+                  <button
+                    id="tab-mode-today-all"
+                    onClick={() => setPostMode('today_all')}
+                    className={`p-2 rounded-xl border text-left transition-all ${
+                      postMode === 'today_all'
+                        ? 'bg-red-950/70 border-red-500 text-white shadow-sm'
+                        : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="truncate">Today All Combined</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-400 mt-0.5">{todayMatches.length} fixtures</p>
+                  </button>
+
+                  <button
+                    id="tab-mode-yesterday-all"
+                    onClick={() => setPostMode('yesterday_all')}
+                    className={`p-2 rounded-xl border text-left transition-all ${
+                      postMode === 'yesterday_all' || postMode === 'yesterday'
+                        ? 'bg-red-950/70 border-red-500 text-white shadow-sm'
+                        : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="truncate">Yesterday All Combined</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-400 mt-0.5">{yesterdayMatches.length} results</p>
+                  </button>
+                </div>
               </div>
 
               {/* Status Info Box */}
@@ -653,8 +955,24 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
                 <div className="flex items-center justify-between text-neutral-400">
                   <span>Target Date:</span>
                   <strong className="text-neutral-200">
-                    {postMode === 'today' ? todayFormattedDisplay : yesterdayFormattedDisplay}
+                    {postMode.startsWith('yesterday') ? yesterdayFormattedDisplay : todayFormattedDisplay}
                   </strong>
+                </div>
+                <div className="flex items-center justify-between text-neutral-400">
+                  <span>Active Selection:</span>
+                  <span className="text-neutral-200 font-semibold">
+                    {postMode === 'today_top'
+                      ? 'Today Post 1: Top Leagues & Saudi Pro League'
+                      : postMode === 'today_low'
+                      ? 'Today Post 2: World & Lower Leagues'
+                      : postMode === 'today_all'
+                      ? 'Today: All Fixtures Combined'
+                      : postMode === 'yesterday_top'
+                      ? 'Yesterday Post 1: Top Leagues & Saudi Pro League'
+                      : postMode === 'yesterday_low'
+                      ? 'Yesterday Post 2: World & Lower Leagues'
+                      : "Yesterday: All Final Results Combined"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-neutral-400">
                   <span>Target Service:</span>
@@ -664,30 +982,54 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
                 </div>
                 <div className="flex items-center justify-between text-neutral-400">
                   <span>Formatting:</span>
-                  <span className="text-neutral-200">Mathematical Bold + Flags + WAT</span>
+                  <span className="text-neutral-200">Mathematical Bold + Flags + (W) Prefix + WAT</span>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                <button
-                  id="btn-publish-facebook"
-                  onClick={handlePublish}
-                  disabled={isPublishing || !postText.trim()}
-                  className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
-                >
-                  <Facebook className="w-4 h-4" />
-                  <span>{isPublishing ? 'Publishing...' : '📢 Publish to Facebook Page'}</span>
-                </button>
+              <div className="space-y-2 pt-1">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    id="btn-publish-facebook"
+                    onClick={handlePublish}
+                    disabled={isPublishing || !postText.trim()}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                  >
+                    <Facebook className="w-4 h-4" />
+                    <span>{isPublishing ? 'Publishing...' : '📢 Publish Selected Post'}</span>
+                  </button>
 
-                <button
-                  id="btn-copy-post"
-                  onClick={handleCopy}
-                  className="py-2.5 px-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium text-xs flex items-center justify-center gap-1.5 border border-neutral-700 transition-colors"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? 'Copied!' : 'Copy Text'}</span>
-                </button>
+                  <button
+                    id="btn-copy-post"
+                    onClick={handleCopy}
+                    className="py-2.5 px-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-medium text-xs flex items-center justify-center gap-1.5 border border-neutral-700 transition-colors"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copied ? 'Copied!' : 'Copy'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    id="btn-publish-both-posts"
+                    onClick={handlePublishBoth}
+                    disabled={isPublishing || todayMatches.length === 0}
+                    className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span className="truncate">⚡ 2 Posts: Today</span>
+                  </button>
+
+                  <button
+                    id="btn-publish-both-yesterday-posts"
+                    onClick={handlePublishBothYesterday}
+                    disabled={isPublishing || yesterdayMatches.length === 0}
+                    className="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span className="truncate">⚡ 2 Posts: Yesterday</span>
+                  </button>
+                </div>
               </div>
 
               {/* Publish Result Alert */}
@@ -865,53 +1207,70 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
             {todayMatches.length === 0 ? (
               <p className="text-xs text-neutral-500 py-4 text-center">No matches currently loaded from ESPN.</p>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {todayMatches.map((m) => {
-                  const isMonitored = monitoredMatchIds.has(m.id);
-                  const { home, away } = extractTeamNames(m);
-                  const { home: hScore, away: aScore } = extractScore(m);
-                  const isLive = m.status?.type?.state === 'in';
-                  const flag = getMatchFlag(m);
-                  const kickoff = formatKickoffWAT(m.date);
-
+              <div className="space-y-4">
+                {(Object.entries(groupedTodayMatches) as [string, MatchEventSummary[]][]).map(([leagueName, leagueMatches]) => {
+                  const leagueFlag = leagueMatches[0] ? getMatchFlag(leagueMatches[0]) : '🏆';
                   return (
-                    <div
-                      key={m.id}
-                      onClick={() => onSelectMatch(m)}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                        isMonitored
-                          ? 'bg-emerald-950/30 border-emerald-600/80 shadow-sm'
-                          : 'bg-neutral-950 border-neutral-800/80 hover:border-neutral-700'
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
-                          <span>{flag}</span>
-                          <span className="truncate">{m.league || 'Match'}</span>
-                          <span>•</span>
-                          <span className={isLive ? 'text-emerald-400 font-bold' : ''}>
-                            {isLive ? `${m.status?.displayClock || 'Live'}` : `${kickoff} WAT`}
-                          </span>
+                    <div key={leagueName} className="space-y-2">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-950/90 border border-neutral-800 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{leagueFlag}</span>
+                          <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">{leagueName}</span>
                         </div>
-                        <p className="text-xs font-bold text-white truncate mt-0.5">
-                          {home} {isLive ? `${hScore} - ${aScore}` : 'vs'} {away}
-                        </p>
+                        <span className="text-[10px] text-neutral-400 font-mono">
+                          {leagueMatches.length} match{leagueMatches.length !== 1 ? 'es' : ''}
+                        </span>
                       </div>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleMonitor(m.id);
-                        }}
-                        className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors ${
-                          isMonitored
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                            : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
-                        }`}
-                      >
-                        <Radio className="w-3 h-3" />
-                        <span>{isMonitored ? 'Monitored' : '+ Add'}</span>
-                      </button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {leagueMatches.map((m) => {
+                          const isMonitored = monitoredMatchIds.has(m.id);
+                          const { home, away } = extractTeamNames(m);
+                          const { home: hScore, away: aScore } = extractScore(m);
+                          const isLive = m.status?.type?.state === 'in';
+                          const flag = getMatchFlag(m);
+                          const kickoff = formatKickoffWAT(m.date);
+
+                          return (
+                            <div
+                              key={m.id}
+                              onClick={() => onSelectMatch(m)}
+                              className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                                isMonitored
+                                  ? 'bg-emerald-950/30 border-emerald-600/80 shadow-sm'
+                                  : 'bg-neutral-950 border-neutral-800/80 hover:border-neutral-700'
+                              }`}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 text-[11px] text-neutral-400">
+                                  <span>{flag}</span>
+                                  <span className={isLive ? 'text-emerald-400 font-bold' : ''}>
+                                    {isLive ? `${m.status?.displayClock || 'Live'}` : `${kickoff} WAT`}
+                                  </span>
+                                </div>
+                                <p className="text-xs font-bold text-white truncate mt-0.5">
+                                  {home} {isLive ? `${hScore} - ${aScore}` : 'vs'} {away}
+                                </p>
+                              </div>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onToggleMonitor(m.id);
+                                }}
+                                className={`px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors ${
+                                  isMonitored
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                    : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'
+                                }`}
+                              >
+                                <Radio className="w-3 h-3" />
+                                <span>{isMonitored ? 'Monitored' : '+ Add'}</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })}

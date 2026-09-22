@@ -355,11 +355,16 @@ export function getCompetitionFlag(competition) {
     s === 'uefa.europa.conf' ||
     s === 'uefa.conference' ||
     s === 'uefa.super_cup' ||
+    s === 'uefa.wchampions' ||
+    s.startsWith('uefa.wchampions') ||
     n.includes('uefa champions league') ||
     n.includes('uefa europa league') ||
     n.includes('uefa conference league') ||
     n.includes('uefa europa conference league') ||
-    n.includes('uefa super cup')
+    n.includes('uefa super cup') ||
+    n.includes('uefa women') ||
+    (n.includes('champions league') && !n.includes('afc') && !n.includes('caf') && !n.includes('concacaf')) ||
+    (n.includes('europa league') && !n.includes('afc') && !n.includes('caf'))
   ) {
     return '🇪🇺';
   }
@@ -375,10 +380,13 @@ export function getCompetitionFlag(competition) {
     s === 'uefa.euroq' ||
     s.startsWith('uefa.euro') ||
     s.startsWith('uefa.nations') ||
+    s.startsWith('uefa.w.nations') ||
+    s.startsWith('uefa.weuro') ||
     n.includes('uefa european championship') ||
     n.includes('uefa nations league') ||
     n.includes('european championship qualifying') ||
-    n.includes('euro qualifying')
+    n.includes('euro qualifying') ||
+    n.includes('weuro')
   ) {
     return '🇪🇺';
   }
@@ -390,11 +398,14 @@ export function getCompetitionFlag(competition) {
     s.startsWith('fifa.worldq') ||
     s === 'fifa.confederations' ||
     s === 'fifa.cwc' ||
+    s === 'fifa.wwc' ||
     s.startsWith('fifa.') ||
     n.includes('fifa world cup') ||
     n.includes('world cup qualifying') ||
     n.includes('fifa confederations') ||
-    n.includes('fifa club world cup')
+    n.includes('fifa club world cup') ||
+    n.includes('fifa intercontinental') ||
+    n.includes('club world cup')
   ) {
     return '🌍';
   }
@@ -417,17 +428,22 @@ export function getCompetitionFlag(competition) {
     n.includes('copa américa') ||
     n.includes('copa america') ||
     n.includes('copa libertadores') ||
-    n.includes('copa sudamericana')
+    n.includes('copa sudamericana') ||
+    n.includes('libertadores') ||
+    n.includes('sudamericana') ||
+    n.includes('recopa sudamericana')
   ) {
     return '🌎';
   }
 
-  // 2E: CONCACAF Senior International & Continental (Gold Cup, Nations League, Qualifiers)
+  // 2E: CONCACAF Senior International & Continental (Gold Cup, Nations League, Qualifiers, Leagues Cup)
   if (
     s.startsWith('concacaf.') ||
     n.includes('gold cup') ||
     n.includes('concacaf nations league') ||
-    n.includes('concacaf champions')
+    n.includes('concacaf champions') ||
+    n.includes('leagues cup') ||
+    n.includes('campeones cup')
   ) {
     return '🌎';
   }
@@ -437,7 +453,8 @@ export function getCompetitionFlag(competition) {
     s.startsWith('afc.') ||
     n.includes('afc asian cup') ||
     n.includes('asian cup') ||
-    n.includes('afc champions')
+    n.includes('afc champions') ||
+    n.includes('afc cup')
   ) {
     return '🌏';
   }
@@ -451,14 +468,17 @@ export function getCompetitionFlag(competition) {
   // PRIORITY 3: DOMESTIC LEAGUES & CUPS
   // ==========================================
 
-  // 3A: England (Premier League, FA Cup, Carabao Cup)
+  // 3A: England (Premier League, FA Cup, Carabao Cup, EFL Trophy, Championship)
   // Per prompt rule: England MUST be 🏴󠁧󠁢󠁥󠁮󠁧󠁿, NOT 🇬🇧
   if (
     s.startsWith('eng.') ||
     n.includes('premier league') ||
     n.includes('fa cup') ||
-    n.includes('carabao cup') ||
-    n.includes('english')
+    n.includes('carabao') ||
+    n.includes('efl') ||
+    n.includes('english') ||
+    n.includes('community shield') ||
+    n.includes('fa trophy')
   ) {
     return ENGLAND_FLAG;
   }
@@ -474,8 +494,15 @@ export function getCompetitionFlag(competition) {
     return '🇳🇬';
   }
 
-  // 3C: Spain (LaLiga, Copa del Rey)
-  if (s.startsWith('esp.') || n.includes('laliga') || n.includes('copa del rey') || n.includes('spanish')) {
+  // 3C: Spain (LaLiga, Copa del Rey, Supercopa, Liga F)
+  if (
+    s.startsWith('esp.') ||
+    n.includes('laliga') ||
+    n.includes('copa del rey') ||
+    n.includes('spanish') ||
+    n.includes('copa de la reina') ||
+    n.includes('liga f')
+  ) {
     return '🇪🇸';
   }
 
@@ -484,69 +511,134 @@ export function getCompetitionFlag(competition) {
     return '🇩🇪';
   }
 
-  // 3E: Italy (Serie A, Coppa Italia)
-  if (s.startsWith('ita.') || n.includes('serie a') || n.includes('coppa italia') || n.includes('italian')) {
+  // 3E: Italy (Serie A, Coppa Italia, Serie B)
+  if (
+    s.startsWith('ita.') ||
+    n.includes('serie a') ||
+    (n.includes('serie b') && !n.includes('brazil') && !s.startsWith('bra.')) ||
+    n.includes('coppa italia') ||
+    n.includes('italian')
+  ) {
     return '🇮🇹';
   }
 
-  // 3F: France (Ligue 1, Coupe de France)
-  if (s.startsWith('fra.') || n.includes('ligue 1') || n.includes('coupe de france') || n.includes('french')) {
+  // 3F: France (Ligue 1, Ligue 2, Coupe de France)
+  if (
+    s.startsWith('fra.') ||
+    n.includes('ligue 1') ||
+    n.includes('ligue 2') ||
+    n.includes('coupe de france') ||
+    n.includes('french')
+  ) {
     return '🇫🇷';
   }
 
-  // 3G: Portugal (Primeira Liga)
-  if (s.startsWith('por.') || n.includes('primeira liga') || n.includes('portuguese')) {
+  // 3G: Portugal (Primeira Liga, Taça de Portugal)
+  if (
+    s.startsWith('por.') ||
+    n.includes('primeira liga') ||
+    n.includes('taca de portugal') ||
+    n.includes('taça de portugal') ||
+    n.includes('portuguese')
+  ) {
     return '🇵🇹';
   }
 
-  // 3H: Netherlands (Eredivisie)
+  // 3H: Netherlands (Eredivisie, KNVB Beker)
   if (s.startsWith('ned.') || n.includes('eredivisie') || n.includes('dutch') || n.includes('knvb')) {
     return '🇳🇱';
   }
 
-  // 3I: Belgium (Belgian Pro League)
-  if (s.startsWith('bel.') || n.includes('pro league') || n.includes('belgian')) {
+  // 3I: Saudi Arabia (Saudi Pro League, King Cup) - MUST BE CHECKED BEFORE BELGIAN PRO LEAGUE
+  if (
+    s.startsWith('sau.') ||
+    s.startsWith('ksa.') ||
+    n.includes('saudi pro league') ||
+    n.includes('saudi')
+  ) {
+    return '🇸🇦';
+  }
+
+  // 3J: Belgium (Belgian Pro League, Jupiler Pro League)
+  if (s.startsWith('bel.') || n.includes('belgian') || n.includes('jupiler')) {
     return '🇧🇪';
   }
 
-  // 3J: Turkey (Turkish Super Lig)
+  // 3K: Turkey (Turkish Super Lig)
   if (s.startsWith('tur.') || n.includes('super lig') || n.includes('süper lig') || n.includes('turkish')) {
     return '🇹🇷';
   }
 
-  // 3K: Greece (Greek Super League)
+  // 3L: Greece (Greek Super League)
   if (s.startsWith('gre.') || n.includes('super league greece') || n.includes('greek super league') || n.includes('greek')) {
     return '🇬🇷';
   }
 
-  // 3L: Ukraine (Ukrainian Premier League)
+  // 3M: Ukraine (Ukrainian Premier League)
   if (s.startsWith('ukr.') || n.includes('ukrainian') || n.includes('ukraine')) {
     return '🇺🇦';
   }
 
-  // 3M: Norway (Norwegian Eliteserien)
+  // 3N: Norway (Norwegian Eliteserien)
   if (s.startsWith('nor.') || n.includes('eliteserien') || n.includes('norwegian')) {
     return '🇳🇴';
   }
 
-  // 3N: Sweden (Swedish Allsvenskan)
+  // 3O: Sweden (Swedish Allsvenskan)
   if (s.startsWith('swe.') || n.includes('allsvenskan') || n.includes('swedish')) {
     return '🇸🇪';
   }
 
-  // 3O: Saudi Arabia (Saudi Pro League)
-  if (s.startsWith('sau.') || s.startsWith('ksa.') || n.includes('saudi pro league') || n.includes('saudi')) {
-    return '🇸🇦';
-  }
-
-  // 3P: United States (Major League Soccer)
-  if (s.startsWith('usa.') || n.includes('major league soccer') || n.includes('mls')) {
+  // 3P: United States (Major League Soccer, USL, NWSL)
+  if (
+    s.startsWith('usa.') ||
+    s === 'mls' ||
+    n.includes('major league soccer') ||
+    n.includes('mls') ||
+    n.includes('usl') ||
+    n.includes('nwsl') ||
+    n.includes('u.s. open cup') ||
+    n.includes('us open cup')
+  ) {
     return '🇺🇸';
   }
 
-  // 3Q: Scotland
-  if (s.startsWith('sco.') || n.includes('scottish')) {
+  // 3Q: Scotland (Scottish Premiership, SPFL, Scottish Cup)
+  if (s.startsWith('sco.') || n.includes('scottish') || n.includes('spfl')) {
     return '🏴󠁧󠁢󠁳󠁣󠁴󠁿';
+  }
+
+  // 3R: Wales (Cymru Premier, Welsh Cup)
+  if (s.startsWith('wal.') || n.includes('welsh') || n.includes('cymru')) {
+    return '🏴󠁧󠁢󠁷󠁬󠁳󠁿';
+  }
+
+  // 3S: Brazil (Brasileirão, Copa do Brasil, Brazil Serie B, State Championships)
+  if (
+    s.startsWith('bra.') ||
+    n.includes('brazil') ||
+    n.includes('brasil') ||
+    n.includes('brasileir') ||
+    n.includes('copa do brasil') ||
+    (n.includes('serie b') && n.includes('brazil')) ||
+    s === 'bra.2'
+  ) {
+    return '🇧🇷';
+  }
+
+  // 3T: Argentina (Liga Profesional, Copa Argentina, Primera Nacional)
+  if (
+    s.startsWith('arg.') ||
+    n.includes('argentin') ||
+    n.includes('primera nacional') ||
+    n.includes('copa de la liga profesional')
+  ) {
+    return '🇦🇷';
+  }
+
+  // 3U: Mexico (Liga MX, Copa MX, Liga de Expansión)
+  if (s.startsWith('mex.') || n.includes('liga mx') || n.includes('mexic')) {
+    return '🇲🇽';
   }
 
   // 3R: Check country hint from venue/competition metadata if available

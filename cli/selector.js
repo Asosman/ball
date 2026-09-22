@@ -201,11 +201,15 @@ export async function promptMainMenu() {
       name: 'action',
       message: 'Select action to execute:',
       choices: [
-        { name: "1. 📢 Post today's matches to Facebook Page", value: 'post' },
+        { name: "1. 📢 Post today's fixtures to Facebook (2 posts: Top Leagues & World Leagues)", value: 'post' },
+        { name: "1a. 🌟 Post today's Top Leagues only (incl. Saudi Pro League)", value: 'post_top' },
+        { name: "1b. 🌍 Post today's World / Lower Leagues only", value: 'post_low' },
         { name: '2. 🎯 Select matches to monitor (live events & assists)', value: 'monitor' },
         { name: '3. ⚡ Post fixtures & start live monitoring automatically', value: 'both' },
-        { name: '4. 📅 View yesterday\'s results', value: 'yesterday' },
-        { name: '5. 📤 Post yesterday\'s results to Facebook', value: 'post_yesterday' },
+        { name: '4. 📅 View yesterday\'s results table', value: 'yesterday' },
+        { name: "5. 📤 Post yesterday's results to Facebook (2 posts: Top Leagues & World Leagues)", value: 'post_yesterday' },
+        { name: "5a. 🌟 Post yesterday's Top Leagues results only (incl. Saudi Pro League)", value: 'post_yesterday_top' },
+        { name: "5b. 🌍 Post yesterday's World / Lower Leagues results only", value: 'post_yesterday_low' },
         { name: '6. 📋 View match details', value: 'details' },
         { name: '7. 🚪 Exit application', value: 'exit' },
       ],
@@ -216,6 +220,7 @@ export async function promptMainMenu() {
 
 /**
  * Prompts user to select matches to monitor with interactive checkbox list.
+ * Separates matches by leagues with clear visual headers.
  * Enforces maximum of 15 matches.
  * @param {any[]} matches
  * @param {string[]} [currentlyMonitored=[]]
@@ -227,28 +232,46 @@ export async function promptMatchSelection(matches, currentlyMonitored = []) {
     return [];
   }
 
-  const choices = matches.map((m) => {
-    let stateBadge = '[🕐 PRE  ]';
-    if (m.status?.state === 'in') {
-      const clock = m.status?.clock ? `${m.status.clock}'` : 'LIVE';
-      stateBadge = `[🔴 ${clock.padEnd(5, ' ')}]`;
-    } else if (m.status?.state === 'post') {
-      stateBadge = '[✅ FINAL]';
-    } else if (m.status?.description === 'Halftime') {
-      stateBadge = '[⏸️ HT   ]';
-    }
-
-    const flag = getMatchFlag(m);
-    const kickoff = m.kickoffFormattedWAT || 'TBD';
-    const scoreText = m.status?.state !== 'pre' ? ` (${m.score?.home ?? 0} - ${m.score?.away ?? 0})` : '';
-    const label = `${stateBadge} ${flag} ${m.homeName} vs ${m.awayName}${scoreText} • ${m.leagueName} [${kickoff} WAT]`;
-
-    return {
-      name: label,
-      value: String(m.fixtureId),
-      checked: currentlyMonitored.includes(String(m.fixtureId)),
-    };
+  // Group matches strictly by league/competition
+  const grouped = {};
+  matches.forEach((m) => {
+    const league = m.leagueName || 'Other Competitions';
+    if (!grouped[league]) grouped[league] = [];
+    grouped[league].push(m);
   });
+
+  const choices = [];
+  for (const [league, leagueMatches] of Object.entries(grouped)) {
+    const leagueFlag = leagueMatches[0] ? getMatchFlag(leagueMatches[0]) : '🏆';
+    choices.push(
+      new inquirer.Separator(
+        `\n  ${C.bold}${C.brightYellow}🏆 ${leagueFlag} ${league.toUpperCase()} (${leagueMatches.length})${C.reset}`
+      )
+    );
+
+    leagueMatches.forEach((m) => {
+      let stateBadge = '[🕐 PRE  ]';
+      if (m.status?.state === 'in') {
+        const clock = m.status?.clock ? `${m.status.clock}'` : 'LIVE';
+        stateBadge = `[🔴 ${clock.padEnd(5, ' ')}]`;
+      } else if (m.status?.state === 'post') {
+        stateBadge = '[✅ FINAL]';
+      } else if (m.status?.description === 'Halftime') {
+        stateBadge = '[⏸️ HT   ]';
+      }
+
+      const flag = getMatchFlag(m);
+      const kickoff = m.kickoffFormattedWAT || 'TBD';
+      const scoreText = m.status?.state !== 'pre' ? ` (${m.score?.home ?? 0} - ${m.score?.away ?? 0})` : '';
+      const label = `${stateBadge} ${flag} ${m.homeName} vs ${m.awayName}${scoreText} [${kickoff} WAT]`;
+
+      choices.push({
+        name: label,
+        value: String(m.fixtureId),
+        checked: currentlyMonitored.includes(String(m.fixtureId)),
+      });
+    });
+  }
 
   while (true) {
     const { selected } = await inquirer.prompt([
@@ -309,18 +332,38 @@ export async function promptMatchDetailSelection(matches) {
     return null;
   }
 
+  const grouped = {};
+  matches.forEach((m) => {
+    const league = m.leagueName || 'Other Competitions';
+    if (!grouped[league]) grouped[league] = [];
+    grouped[league].push(m);
+  });
+
+  const choices = [];
+  for (const [league, leagueMatches] of Object.entries(grouped)) {
+    const leagueFlag = leagueMatches[0] ? getMatchFlag(leagueMatches[0]) : '🏆';
+    choices.push(
+      new inquirer.Separator(
+        `\n  ${C.bold}${C.brightYellow}🏆 ${leagueFlag} ${league.toUpperCase()} (${leagueMatches.length})${C.reset}`
+      )
+    );
+
+    leagueMatches.forEach((m) => {
+      const flag = getMatchFlag(m);
+      choices.push({
+        name: `${flag} ${m.homeName} vs ${m.awayName} (${m.kickoffFormattedWAT || 'WAT'})`,
+        value: String(m.fixtureId),
+      });
+    });
+  }
+
   const { selectedId } = await inquirer.prompt([
     {
       type: 'select',
       name: 'selectedId',
       message: 'Select a match to view details:',
-      choices: matches.map((m) => {
-        const flag = getMatchFlag(m);
-        return {
-          name: `${flag} ${m.homeName} vs ${m.awayName} (${m.leagueName})`,
-          value: String(m.fixtureId),
-        };
-      }),
+      choices,
+      pageSize: 15,
     },
   ]);
   return selectedId;

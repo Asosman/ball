@@ -288,7 +288,8 @@ async function fetchSingleLeagueScoreboard(
         resolvedLeagueSlug = `afc.champions.${region}`;
       }
 
-      const cleanLeague = resolveLeagueDisplayName(resolvedLeagueSlug, seasonSlug, rawLeagueName);
+      const altLeagueName = comp.altGameNote || comp.notes?.[0]?.headline || e.league?.name || rawLeagueName;
+      const cleanLeague = resolveLeagueDisplayName(resolvedLeagueSlug, seasonSlug, altLeagueName);
       const details = comp.details || e.details || [];
 
       return {
@@ -363,10 +364,12 @@ export async function fetchScoreboard(
   dateStr: string
 ): Promise<{ events: MatchEventSummary[]; leagueName?: string }> {
   if (league === 'monitored-all' || league === 'all') {
-    // Concurrently fetch all 17 monitored leagues without querying the uncurated global 'all' feed
-    const results = await Promise.allSettled(
-      MONITORED_LEAGUE_SLUGS.map((slug) => fetchSingleLeagueScoreboard(slug, dateStr))
-    );
+    // Concurrently fetch monitored leagues and global 'all' scoreboard to discover all matches API gets
+    const fetchPromises = [
+      ...MONITORED_LEAGUE_SLUGS.map((slug) => fetchSingleLeagueScoreboard(slug, dateStr)),
+      fetchSingleLeagueScoreboard('all', dateStr),
+    ];
+    const results = await Promise.allSettled(fetchPromises);
 
     const mergedMap = new Map<string, MatchEventSummary>();
     for (const r of results) {

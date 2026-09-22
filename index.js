@@ -5,7 +5,18 @@ import db from './services/db.js';
 import realFacebook from './services/facebook.js';
 import mockFacebook from './mock/mockFacebookClient.js';
 import { fetchTodaysMatches } from './services/espn.js';
-import { formatFixturesPost, compareMatchState, formatEventPost, formatLineupPost, isWhitelistedEvent } from './services/eventEngine.js';
+import {
+  formatFixturesPost,
+  formatTodayTopFixturesPost,
+  formatTodayLowFixturesPost,
+  formatYesterdayTopResultsPost,
+  formatYesterdayLowResultsPost,
+  splitMatchesByTier,
+  compareMatchState,
+  formatEventPost,
+  formatLineupPost,
+  isWhitelistedEvent,
+} from './services/eventEngine.js';
 import { monitoringManager } from './services/monitoringManager.js';
 import { displayFixturesSummary, promptMainMenu, promptMatchSelection, promptMonitoringSubmenu, promptMatchDetailSelection, displayMatchDetails } from './cli/selector.js';
 import { formatDateDisplayWAT, getYesterdayDateIsoWAT } from './utils/time.js';
@@ -331,31 +342,90 @@ async function runLiveApp() {
       process.exit(0);
     }
 
-    if (action === 'post' || action === 'both') {
-      const fixturesPost = formatFixturesPost(matches, formatDateDisplayWAT());
-      logger.info("Posting today's fixtures to Facebook...");
-      const postId = await fbClient.createPagePost(fixturesPost);
-      if (postId) {
-        console.log(`\n✅ Fixtures posted to Facebook successfully! Post ID: ${postId}\n`);
-      } else {
-        console.log(`\n⚠️ Fixtures post queued/simulated.\n`);
+    if (action === 'post' || action === 'both' || action === 'post_top' || action === 'post_low') {
+      const { top: topMatches, low: lowMatches } = splitMatchesByTier(matches);
+      const shouldPostTop = action === 'post' || action === 'both' || action === 'post_top';
+      const shouldPostLow = action === 'post' || action === 'both' || action === 'post_low';
+
+      if (shouldPostTop) {
+        if (topMatches.length > 0) {
+          const topFixturesPost = formatTodayTopFixturesPost(topMatches, formatDateDisplayWAT());
+          logger.info("Posting today's fixtures (Post 1/2: Top Leagues & Saudi Pro League) to Facebook...");
+          const postId1 = await fbClient.createPagePost(topFixturesPost);
+          if (postId1) {
+            console.log(`\n✅ [POST 1/2] Top Leagues & Saudi Pro League fixtures posted to Facebook! Post ID: ${postId1}\n`);
+          } else {
+            console.log(`\n⚠️ [POST 1/2] Top Leagues post queued/simulated.\n`);
+          }
+        } else {
+          logger.info("No Top League fixtures found today to post.");
+        }
+      }
+
+      if (shouldPostLow) {
+        if (lowMatches.length > 0) {
+          const lowFixturesPost = formatTodayLowFixturesPost(lowMatches, formatDateDisplayWAT());
+          logger.info("Posting today's fixtures (Post 2/2: World & Lower Leagues) to Facebook...");
+          const postId2 = await fbClient.createPagePost(lowFixturesPost);
+          if (postId2) {
+            console.log(`\n✅ [POST 2/2] World & Lower Leagues fixtures posted to Facebook! Post ID: ${postId2}\n`);
+          } else {
+            console.log(`\n⚠️ [POST 2/2] World & Lower Leagues post queued/simulated.\n`);
+          }
+        } else {
+          logger.info("No World/Lower League fixtures found today to post.");
+        }
       }
     }
 
-    if (action === 'yesterday' || action === 'post_yesterday') {
+    if (
+      action === 'yesterday' ||
+      action === 'post_yesterday' ||
+      action === 'post_yesterday_top' ||
+      action === 'post_yesterday_low'
+    ) {
       const yesterdayDate = getYesterdayDateIsoWAT();
       logger.info(`Fetching yesterday's fixtures for ${yesterdayDate}...`);
       const yMatches = await fetchTodaysMatches(yesterdayDate);
       displayFixturesSummary(yMatches);
 
-      if (action === 'post_yesterday') {
-        const fixturesPost = formatFixturesPost(yMatches, `Yesterday (${yesterdayDate})`);
-        logger.info("Posting yesterday's fixtures to Facebook...");
-        const postId = await fbClient.createPagePost(fixturesPost);
-        if (postId) {
-          console.log(`\n✅ Yesterday's results posted to Facebook successfully! Post ID: ${postId}\n`);
-        } else {
-          console.log(`\n⚠️ Yesterday's post queued/simulated.\n`);
+      if (
+        action === 'post_yesterday' ||
+        action === 'post_yesterday_top' ||
+        action === 'post_yesterday_low'
+      ) {
+        const { top: topYMatches, low: lowYMatches } = splitMatchesByTier(yMatches);
+        const shouldPostTop = action === 'post_yesterday' || action === 'post_yesterday_top';
+        const shouldPostLow = action === 'post_yesterday' || action === 'post_yesterday_low';
+
+        if (shouldPostTop) {
+          if (topYMatches.length > 0) {
+            const topPost = formatYesterdayTopResultsPost(topYMatches, `Yesterday (${yesterdayDate})`);
+            logger.info("Posting yesterday's results (Post 1/2: Top Leagues & Saudi Pro League) to Facebook...");
+            const postId1 = await fbClient.createPagePost(topPost);
+            if (postId1) {
+              console.log(`\n✅ [YESTERDAY POST 1/2] Top Leagues & Saudi Pro League results posted to Facebook! Post ID: ${postId1}\n`);
+            } else {
+              console.log(`\n⚠️ [YESTERDAY POST 1/2] Top Leagues post queued/simulated.\n`);
+            }
+          } else {
+            logger.info("No Top League results found for yesterday to post.");
+          }
+        }
+
+        if (shouldPostLow) {
+          if (lowYMatches.length > 0) {
+            const lowPost = formatYesterdayLowResultsPost(lowYMatches, `Yesterday (${yesterdayDate})`);
+            logger.info("Posting yesterday's results (Post 2/2: World & Lower Leagues) to Facebook...");
+            const postId2 = await fbClient.createPagePost(lowPost);
+            if (postId2) {
+              console.log(`\n✅ [YESTERDAY POST 2/2] World & Lower Leagues results posted to Facebook! Post ID: ${postId2}\n`);
+            } else {
+              console.log(`\n⚠️ [YESTERDAY POST 2/2] World & Lower Leagues post queued/simulated.\n`);
+            }
+          } else {
+            logger.info("No World/Lower League results found for yesterday to post.");
+          }
         }
       }
     }

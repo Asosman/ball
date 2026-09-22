@@ -15,71 +15,138 @@ export const CDN_BASE = 'https://cdn.espn.com/core/soccer';
 // Comprehensive list of monitored football competitions / league slugs
 // Includes domestic club leagues, European continental cups, senior international competitions, and Nigerian competitions.
 export const COMPREHENSIVE_LEAGUES = [
-  // Domestic Leagues
+  // Domestic Leagues - England & UK
   { slug: 'eng.1', name: 'English Premier League' },
+  { slug: 'eng.2', name: 'English Championship' },
+  { slug: 'eng.3', name: 'English League One' },
+  { slug: 'eng.4', name: 'English League Two' },
+  { slug: 'eng.5', name: 'English National League' },
+  { slug: 'eng.fa', name: 'English FA Cup' },
+  { slug: 'eng.league_cup', name: 'English Carabao Cup' },
+  { slug: 'eng.trophy', name: 'EFL Trophy' },
+  { slug: 'eng.charity', name: 'FA Community Shield' },
+  { slug: 'eng.w.1', name: "Women's Super League" },
+  { slug: 'sco.1', name: 'Scottish Premiership' },
+  { slug: 'sco.2', name: 'Scottish Championship' },
+  { slug: 'sco.tennents', name: 'Scottish Cup' },
+  { slug: 'sco.cis', name: 'Scottish League Cup' },
+  { slug: 'sco.challenge', name: 'SPFL Challenge Cup' },
+  { slug: 'wal.1', name: 'Cymru Premier' },
+
+  // Domestic Leagues & Cups - Europe
   { slug: 'esp.1', name: 'Spanish LaLiga' },
+  { slug: 'esp.2', name: 'Spanish Segunda División' },
+  { slug: 'esp.copa_del_rey', name: 'Spanish Copa del Rey' },
+  { slug: 'esp.super_cup', name: 'Spanish Supercopa' },
+  { slug: 'esp.w.1', name: 'Liga F' },
   { slug: 'ita.1', name: 'Italian Serie A' },
+  { slug: 'ita.2', name: 'Italian Serie B' },
+  { slug: 'ita.coppa_italia', name: 'Coppa Italia' },
+  { slug: 'ita.super_cup', name: 'Supercoppa Italiana' },
   { slug: 'ger.1', name: 'German Bundesliga' },
+  { slug: 'ger.2', name: 'German 2. Bundesliga' },
+  { slug: 'ger.dfb_pokal', name: 'DFB-Pokal' },
+  { slug: 'ger.super_cup', name: 'DFL-Supercup' },
   { slug: 'fra.1', name: 'French Ligue 1' },
+  { slug: 'fra.2', name: 'French Ligue 2' },
+  { slug: 'fra.coupe_de_france', name: 'Coupe de France' },
+  { slug: 'fra.super_cup', name: 'Trophée des Champions' },
   { slug: 'por.1', name: 'Portuguese Primeira Liga' },
+  { slug: 'por.taca.portugal', name: 'Taça de Portugal' },
   { slug: 'ned.1', name: 'Dutch Eredivisie' },
+  { slug: 'ned.2', name: 'Dutch Eerste Divisie' },
+  { slug: 'ned.cup', name: 'KNVB Beker' },
   { slug: 'bel.1', name: 'Belgian Pro League' },
   { slug: 'tur.1', name: 'Turkish Super Lig' },
   { slug: 'gre.1', name: 'Greek Super League' },
   { slug: 'nor.1', name: 'Norwegian Eliteserien' },
   { slug: 'swe.1', name: 'Swedish Allsvenskan' },
+  { slug: 'den.1', name: 'Danish Superliga' },
+  { slug: 'aut.1', name: 'Austrian Bundesliga' },
+  { slug: 'sui.1', name: 'Swiss Super League' },
+  { slug: 'pol.1', name: 'Polish Ekstraklasa' },
+  { slug: 'rus.1', name: 'Russian Premier League' },
+  { slug: 'ukr.1', name: 'Ukrainian Premier League' },
+
+  // Middle East & Africa
   { slug: 'sau.1', name: 'Saudi Pro League' },
+  { slug: 'ksa.1', name: 'Saudi Pro League' },
+  { slug: 'ksa.kings.cup', name: 'King Cup' },
+  { slug: 'nga.1', name: 'Nigerian Professional League' },
+  { slug: 'rsa.1', name: 'South African Premiership' },
+  { slug: 'egy.1', name: 'Egyptian Premier League' },
+  { slug: 'mar.1', name: 'Moroccan Botola Pro' },
+
+  // Americas
   { slug: 'usa.1', name: 'Major League Soccer (MLS)' },
   { slug: 'mls', name: 'Major League Soccer (MLS)' },
+  { slug: 'usa.open', name: 'U.S. Open Cup' },
+  { slug: 'usa.usl.1', name: 'USL Championship' },
+  { slug: 'usa.usl.l1', name: 'USL League One' },
+  { slug: 'usa.nwsl', name: 'NWSL' },
+  { slug: 'usa.w.usl.1', name: 'USL Super League' },
+  { slug: 'mex.1', name: 'Liga MX' },
+  { slug: 'mex.2', name: 'Liga de Expansión MX' },
+  { slug: 'mex.w.1', name: 'Liga MX Femenil' },
+  { slug: 'bra.1', name: 'Campeonato Brasileiro Série A' },
+  { slug: 'bra.2', name: 'Campeonato Brasileiro Série B' },
+  { slug: 'bra.copa_do_brazil', name: 'Copa do Brasil' },
+  { slug: 'arg.1', name: 'Argentine Primera División' },
+  { slug: 'arg.copa', name: 'Copa de la Liga Profesional' },
+  { slug: 'arg.2', name: 'Primera Nacional' },
+  { slug: 'col.1', name: 'Categoría Primera A' },
+  { slug: 'chi.1', name: 'Chilean Primera División' },
+  { slug: 'uru.1', name: 'Uruguayan Primera División' },
 
-  // Domestic Cups
-  { slug: 'eng.fa', name: 'English FA Cup' },
-  { slug: 'eng.league_cup', name: 'English Carabao Cup' },
-  { slug: 'esp.copa_del_rey', name: 'Spanish Copa del Rey' },
-
-  // Nigerian Football Competitions
-  { slug: 'nga.1', name: 'Nigerian Professional League' },
+  // Asia & Oceania
+  { slug: 'jpn.1', name: 'J1 League' },
+  { slug: 'kor.1', name: 'K League 1' },
+  { slug: 'aus.1', name: 'A-League Men' },
+  { slug: 'chn.1', name: 'Chinese Super League' },
+  { slug: 'ind.1', name: 'Indian Super League' },
 
   // European Continental Competitions
   { slug: 'uefa.champions', name: 'UEFA Champions League' },
   { slug: 'uefa.europa', name: 'UEFA Europa League' },
   { slug: 'uefa.europa.conf', name: 'UEFA Europa Conference League' },
   { slug: 'uefa.super_cup', name: 'UEFA Super Cup' },
+  { slug: 'uefa.wchampions', name: "UEFA Women's Champions League" },
+  { slug: 'uefa.youth', name: 'UEFA Youth League' },
 
   // Other Continental Club Competitions
   { slug: 'conmebol.libertadores', name: 'Copa Libertadores' },
+  { slug: 'conmebol.sudamericana', name: 'Copa Sudamericana' },
+  { slug: 'conmebol.recopa', name: 'Recopa Sudamericana' },
+  { slug: 'concacaf.champions', name: 'Concacaf Champions Cup' },
+  { slug: 'concacaf.leagues.cup', name: 'Leagues Cup' },
+  { slug: 'campeones.cup', name: 'Campeones Cup' },
+  { slug: 'afc.champions', name: 'AFC Champions League' },
   { slug: 'afc.champions.east', name: 'AFC Champions League Elite East' },
   { slug: 'afc.champions.west', name: 'AFC Champions League Elite West' },
+  { slug: 'afc.cup', name: 'AFC Champions League Two' },
+  { slug: 'caf.champions', name: 'CAF Champions League' },
+  { slug: 'caf.confed', name: 'CAF Confederation Cup' },
 
-  // Senior Men's International Competitions - Global
+  // Senior International Competitions - Global & Continental
   { slug: 'fifa.world', name: 'FIFA World Cup' },
   { slug: 'fifa.worldq', name: 'FIFA World Cup Qualifying' },
-  { slug: 'fifa.confederations', name: 'FIFA Confederations Cup' },
   { slug: 'fifa.cwc', name: 'FIFA Club World Cup' },
-
-  // Senior Men's International Competitions - UEFA
+  { slug: 'fifa.intercontinental_cup', name: 'FIFA Intercontinental Cup' },
+  { slug: 'fifa.wwc', name: "FIFA Women's World Cup" },
+  { slug: 'fifa.friendly', name: 'International Friendly' },
+  { slug: 'club.friendly', name: 'Club Friendly' },
   { slug: 'uefa.euro', name: 'UEFA European Championship' },
   { slug: 'uefa.nations', name: 'UEFA Nations League' },
   { slug: 'uefa.euroq', name: 'UEFA European Championship Qualifying' },
-
-  // Senior Men's International Competitions - CAF
   { slug: 'caf.nations', name: 'Africa Cup of Nations' },
   { slug: 'caf.nations_qual', name: 'Africa Cup of Nations Qualifying' },
-
-  // Senior Men's International Competitions - CONMEBOL
   { slug: 'conmebol.america', name: 'Copa América' },
   { slug: 'conmebol.america_qual', name: 'Copa América Qualifying' },
-
-  // Senior Men's International Competitions - CONCACAF
   { slug: 'concacaf.gold', name: 'Concacaf Gold Cup' },
   { slug: 'concacaf.gold_qual', name: 'Concacaf Gold Cup Qualifying' },
   { slug: 'concacaf.nations.league', name: 'Concacaf Nations League' },
-
-  // Senior Men's International Competitions - AFC
   { slug: 'afc.asian.cup', name: 'AFC Asian Cup' },
   { slug: 'afc.cupq', name: 'AFC Asian Cup Qualifiers' },
-
-  // Senior Men's International Competitions - OFC
   { slug: 'fifa.worldq.ofc', name: 'FIFA World Cup Qualifying - OFC' },
 ];
 
@@ -137,6 +204,66 @@ export function getAfcRegion(homeName, awayName) {
 }
 
 /**
+ * Detects if a match or league is a women's league or competition.
+ * @param {object} opts
+ * @returns {boolean}
+ */
+export function isWomenCompetition(opts = {}) {
+  const slug = String(opts.leagueSlug || opts.slug || opts.resolvedLeagueSlug || '').toLowerCase();
+  const name = String(opts.leagueName || opts.league || opts.name || '').toLowerCase();
+  const eventName = String(opts.eventName || opts.matchName || '').toLowerCase();
+  const note = String(opts.altNote || opts.altGameNote || opts.notes || '').toLowerCase();
+
+  // Slug matches
+  if (
+    slug.includes('.w.') ||
+    slug.endsWith('.w') ||
+    slug.includes('wchampions') ||
+    slug.includes('wwc') ||
+    slug.includes('weuro') ||
+    slug.includes('nwsl') ||
+    slug.includes('wsl')
+  ) {
+    return true;
+  }
+
+  // Name / description / keyword matches
+  if (
+    name.includes('women') ||
+    name.includes('femenil') ||
+    name.includes('femenina') ||
+    name.includes('femminile') ||
+    name.includes('féminine') ||
+    name.includes('feminine') ||
+    name.includes('frauen') ||
+    name.includes('liga f') ||
+    name.includes('nwsl') ||
+    name.includes('wsl') ||
+    eventName.includes('women') ||
+    eventName.includes('femenil') ||
+    note.includes('women')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Formats a team name by prefixing (W) if the match is a women's competition.
+ * @param {string} teamName
+ * @param {boolean} isWomen
+ * @returns {string}
+ */
+export function formatWomenTeamName(teamName, isWomen) {
+  if (!teamName) return '';
+  if (!isWomen) return teamName;
+  if (teamName.startsWith('(W) ') || teamName.startsWith('(W)')) return teamName;
+  const clean = teamName.replace(/\s+(Women|Ladies|Fem|Femenil|Femmes|Femminile)$/i, '').trim();
+  return `(W) ${clean}`;
+}
+
+/**
  * Normalizes an ESPN competition event into the application's standard NormalizedMatch shape.
  * @param {any} event
  * @param {string} [leagueSlugFallback]
@@ -190,11 +317,13 @@ export function normalizeMatch(event, leagueSlugFallback = 'soccer') {
   const leagueDef = COMPREHENSIVE_LEAGUES.find(
     (l) => l.slug === leagueSlug || l.slug === leagueSlugFallback
   );
+  const rawAltNote = comp.altGameNote || comp.notes?.[0]?.headline || '';
   const leagueName =
     event.league?.name ||
     comp.league?.name ||
     leagueDef?.name ||
-    leagueSlug;
+    rawAltNote ||
+    (leagueSlug !== 'soccer' && leagueSlug !== 'all' ? leagueSlug : 'Soccer');
 
   const country =
     comp.venue?.address?.country ||
@@ -207,11 +336,25 @@ export function normalizeMatch(event, leagueSlugFallback = 'soccer') {
     venue: comp.venue,
   });
 
+  const isWomen = isWomenCompetition({
+    leagueSlug,
+    leagueName,
+    eventName: event.name,
+    altNote: rawAltNote,
+  });
+
+  const rawHome = homeComp.team?.displayName || homeComp.team?.name || 'Home Team';
+  const rawAway = awayComp.team?.displayName || awayComp.team?.name || 'Away Team';
+
+  const homeName = formatWomenTeamName(rawHome, isWomen);
+  const awayName = formatWomenTeamName(rawAway, isWomen);
+
   return {
     fixtureId: String(event.id || comp.id),
     uid: event.uid || `s:600~e:${event.id}`,
-    homeName: homeComp.team?.displayName || homeComp.team?.name || 'Home Team',
-    awayName: awayComp.team?.displayName || awayComp.team?.name || 'Away Team',
+    homeName,
+    awayName,
+    isWomen,
     homeId: String(homeComp.id || homeComp.team?.id || ''),
     awayId: String(awayComp.id || awayComp.team?.id || ''),
     homeLogo: homeComp.team?.logo || '',
@@ -372,6 +515,28 @@ export async function fetchTodaysMatches(targetDateWAT = null) {
     );
   }
 
+  // Also query the global 'all' scoreboard to discover ALL leagues and matches that the API gets
+  try {
+    competitionsChecked++;
+    const allUrl = `${SITE_BASE}/all/scoreboard?dates=${dateStrForEspn}`;
+    const allRes = await withRetry(() => apiClient.get(allUrl), 1, `ESPN Global Scoreboard`);
+    const allEvents = allRes.data?.events || [];
+    for (const ev of allEvents) {
+      matchesDiscovered++;
+      const id = String(ev.id);
+      if (matchesMap.has(id)) {
+        duplicatesCount++;
+        continue;
+      }
+      const kickoffUtc = ev.date || ev.competitions?.[0]?.date;
+      if (isDateInTodayWAT(kickoffUtc, activeDateWAT)) {
+        matchesMap.set(id, normalizeMatch(ev, 'all'));
+      }
+    }
+  } catch (err) {
+    logger.debug(`Global scoreboard query returned: ${err.message}`);
+  }
+
   const finalMatches = Array.from(matchesMap.values());
 
   // Sort chronologically by kickoff timestamp
@@ -402,11 +567,22 @@ export async function getTodayMatches(targetDateWAT = null) {
  * @returns {Promise<any>}
  */
 export async function getMatchSummary(fixtureId, leagueSlug = 'eng.1') {
-  const apiSlug = leagueSlug && leagueSlug.startsWith('afc.champions') ? 'afc.champions' : leagueSlug;
+  let apiSlug = leagueSlug && leagueSlug.startsWith('afc.champions') ? 'afc.champions' : (leagueSlug || 'all');
+  if (apiSlug === 'soccer') apiSlug = 'all';
   const url = `${SITE_BASE}/${apiSlug}/summary?event=${fixtureId}`;
   return withRetry(() => apiClient.get(url), config.espn.maxRetries, `MatchSummary(${fixtureId})`)
     .then((res) => res.data)
-    .catch((err) => {
+    .catch(async (err) => {
+      // If specific league summary failed (e.g. 404), fall back to universal all/summary
+      if (apiSlug !== 'all') {
+        try {
+          const fallbackUrl = `${SITE_BASE}/all/summary?event=${fixtureId}`;
+          const fallbackRes = await apiClient.get(fallbackUrl);
+          if (fallbackRes.data) return fallbackRes.data;
+        } catch (fbErr) {
+          logger.debug(`Universal summary fallback failed for ${fixtureId}: ${fbErr.message}`);
+        }
+      }
       logger.warn(`Failed to fetch match summary for fixture ${fixtureId}: ${err.message}`);
       return null;
     });
@@ -799,29 +975,63 @@ function _normalizeEvent(item, matchContext = {}) {
   }
 
   // 2. RED CARD Detection
-  if (
-    item.redCard === true ||
-    typeText.includes('red card') ||
-    lowerText.includes('red card') ||
-    lowerText.includes('sent off')
-  ) {
-    const isSecondYellow = lowerText.includes('second yellow') || lowerText.includes('2nd yellow');
+  // Strict, false-positive-free detection:
+  // - Handles negation (e.g. "no red card", "avoided a red card", "escaped a red card", "red card overturned")
+  // - Handles non-dismissal sports phrases with "sent off" (e.g. "sent off target", "sent off the crossbar/post/woodwork/bar/line", "sent off balance", "sent off on a stretcher", "sent off for treatment")
+  // - Handles historical references (e.g. "was sent off in the reverse fixture", "had been sent off earlier this season")
+  // - Handles regular yellow cards (ESPN item.yellowCard === true && !item.redCard)
+  // - Requires affirmative dismissal language or official ESPN redCard flag
+  // - Requires an identified player for free-text / commentary detections
+  const isYellowOnly = item.yellowCard === true && item.redCard !== true && !typeText.includes('second yellow') && !typeText.includes('2nd yellow');
+  const confirmsSecondYellow = (lowerText.includes('second yellow') || lowerText.includes('2nd yellow')) &&
+                              (lowerText.includes('sent off') || lowerText.includes('red card'));
+  const isExcludedYellow = isYellowOnly && !confirmsSecondYellow;
+
+  const negationPattern = /\b(?:no\s+red\s+card|not\s+(?:a\s+)?red\s+card|avoid(?:s|ed|ing)?\s+(?:a\s+)?red\s+card|escap(?:es|ed|ing)?\s+(?:a\s+)?red\s+card|red\s+card\s+(?:overturned|rescinded|cancelled|canceled)|overturned\s+(?:the\s+)?red\s+card|instead\s+of\s+a\s+red\s+card|rather\s+than\s+a\s+red\s+card)\b/i;
+  const nonDismissalSentOff = /\bsent\s+off[\s-]*(?:target|balance|the\s+(?:crossbar|post|woodwork|bar|line)|(?:the\s+(?:pitch|field)\s+)?(?:on\s+a\s+stretcher|for\s+treatment|injured))\b/i;
+  const pastHistoricalSentOff = /\b(?:was|had\s+been)\s+sent\s+off\s+(?:in\s+the|last|earlier|previously|against)\b/i;
+  const avoidSentOff = /\b(?:avoid(?:s|ed|ing)?|escap(?:es|ed|ing)?|not)\s+being\s+sent\s+off\b/i;
+
+  const isNegatedOrNonDismissal =
+    negationPattern.test(text) ||
+    nonDismissalSentOff.test(text) ||
+    pastHistoricalSentOff.test(text) ||
+    avoidSentOff.test(text);
+
+  const officialRed = item.redCard === true || typeText === 'red card' || typeText === 'second yellow card' || typeText === 'red-card';
+  const textAffirmative =
+    /\b(?:is|was|has\s+been)\s+shown\s+(?:a\s+|the\s+)?(?:straight\s+)?red\s+card\b/i.test(text) ||
+    /\b(?:receives|received|gets|given)\s+(?:a\s+|the\s+)?(?:straight\s+)?red\s+card\b/i.test(text) ||
+    /\b(?:is|was|has\s+been)\s+sent\s+off\b/i.test(text) ||
+    /\b(?:second\s+yellow\s+card\s+and\s+is\s+sent\s+off|shown\s+a\s+second\s+yellow\s+card)\b/i.test(text) ||
+    /\bstraight\s+red\s+card\b/i.test(text) ||
+    /\bsees\s+red\b/i.test(text);
+
+  if (!isExcludedYellow && !isNegatedOrNonDismissal && (officialRed || textAffirmative)) {
+    const isSecondYellow =
+      typeText.includes('second yellow') ||
+      typeText.includes('2nd yellow') ||
+      lowerText.includes('second yellow') ||
+      lowerText.includes('2nd yellow');
+
     let player = primaryAthlete;
     if (!player) {
-      const cardMatch = text.match(/([A-Z][a-zA-Z\s.-]+?)\s+(?:is shown the red card|sent off)/i);
+      const cardMatch = text.match(/([A-Z][a-zA-Z\s.-]+?)\s+(?:(?:is|was|has\s+been)\s+)?(?:shown\s+(?:a\s+|the\s+)?(?:straight\s+)?red\s+card|receives?\s+(?:a\s+|the\s+)?(?:straight\s+)?red\s+card|sent\s+off|sees\s+red)/i);
       if (cardMatch) player = cardMatch[1].trim();
     }
 
-    return {
-      type: 'RED_CARD',
-      player: player || null,
-      teamId,
-      minute: minute || 0,
-      period: item.period?.number || 1,
-      isSecondYellow,
-      description: text,
-      text,
-    };
+    if (player || officialRed) {
+      return {
+        type: 'RED_CARD',
+        player: player || null,
+        teamId,
+        minute: minute || 0,
+        period: item.period?.number || 1,
+        isSecondYellow,
+        description: text,
+        text,
+      };
+    }
   }
 
   // 3. PENALTIES Detection (Only whitelisted PENALTY SCORED is permitted)
@@ -1036,16 +1246,17 @@ export async function fetchMatchDetails(fixtureId, leagueSlug = 'eng.1', existin
     if (homeComp?.score !== undefined) normalized.score.home = parseInt(homeComp.score, 10) || 0;
     if (awayComp?.score !== undefined) normalized.score.away = parseInt(awayComp.score, 10) || 0;
 
+    const isWomen = normalized.isWomen || isWomenCompetition({ leagueSlug: normalized.leagueSlug, leagueName: normalized.leagueName });
     if (homeComp) {
       normalized.homeId = String(homeComp.id || homeComp.team?.id || normalized.homeId || '');
       if (homeComp.team?.displayName || homeComp.team?.name) {
-        normalized.homeName = homeComp.team.displayName || homeComp.team.name;
+        normalized.homeName = formatWomenTeamName(homeComp.team.displayName || homeComp.team.name, isWomen);
       }
     }
     if (awayComp) {
       normalized.awayId = String(awayComp.id || awayComp.team?.id || normalized.awayId || '');
       if (awayComp.team?.displayName || awayComp.team?.name) {
-        normalized.awayName = awayComp.team.displayName || awayComp.team.name;
+        normalized.awayName = formatWomenTeamName(awayComp.team.displayName || awayComp.team.name, isWomen);
       }
     }
 
@@ -1189,4 +1400,6 @@ export default {
   normalizeEvent,
   eventSignature,
   fetchMatchDetails,
+  isWomenCompetition,
+  formatWomenTeamName,
 };
