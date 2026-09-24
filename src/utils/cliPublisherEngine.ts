@@ -507,7 +507,7 @@ export function formatTodayFixturesPost(
     });
   }
 
-  const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore #ViralMatch #FootballFans';
+  const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore';
   const callToAction = '💬 Drop your predictions and thoughts below! 👇';
 
   lines.push(`━━━━━━━━━━━━━━━━━━━`);
@@ -584,7 +584,7 @@ export function formatYesterdayResultsPost(
     });
   }
 
-  const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore #ViralMatch #FootballFans';
+  const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore';
   const callToAction = '💬 What do you think about the scorelines? 👇';
 
   lines.push(`━━━━━━━━━━━━━━━━━━━`);
@@ -769,7 +769,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'Pre-Game',
     eventDetected: 'LINEUP',
     actionTaken: 'Generated Official Starting XI Facebook post for Arsenal & Chelsea.',
-    facebookPost: `🔥 𝐎𝐅𝐅𝐈𝐂𝐈𝐀𝐋 𝐒𝐓𝐀𝐑𝐓𝐈𝐍𝐆 𝐋𝐈𝐍𝐄𝐔𝐏𝐒 𝐀𝐑𝐄 𝐎𝐔𝐓! 📋⚽\n\n💥 𝐀𝐑𝐒𝐄𝐍𝐀𝐋 🆚 𝐂𝐇𝐄𝐋𝐒𝐄𝐀\n━━━━━━━━━━━━━━━━━━━\n\n𝐀𝐑𝐒𝐄𝐍𝐀𝐋 startingXI; David Raya, Ben White, William Saliba, Gabriel Magalhães, Jurriën Timber, Thomas Partey, Declan Rice, Martin Ødegaard, Bukayo Saka, Kai Havertz, Gabriel Martinelli\n\n𝐂𝐇𝐄𝐋𝐒𝐄𝐀 startingXI; Robert Sánchez, Malo Gusto, Wesley Fofana, Levi Colwill, Marc Cucurella, Moisés Caicedo, Enzo Fernández, Noni Madueke, Cole Palmer, Pedro Neto, Nicolas Jackson\n\n━━━━━━━━━━━━━━━━━━━\n👉 Who is winning this clash? Leave your predictions below! 👇\n\n#Livescore #FootballNews #Matchday #LineupNews`,
+    facebookPost: `(𝐖) 𝐀𝐑𝐒𝐄𝐍𝐀𝐋 startingXI; David Raya, Ben White, William Saliba, Gabriel Magalhães, Jurriën Timber, Thomas Partey, Declan Rice, Martin Ødegaard, Bukayo Saka, Kai Havertz, Gabriel Martinelli\n\n(𝐖) 𝐂𝐇𝐄𝐋𝐒𝐄𝐀 startingXI; Robert Sánchez, Malo Gusto, Wesley Fofana, Levi Colwill, Marc Cucurella, Moisés Caicedo, Enzo Fernández, Noni Madueke, Cole Palmer, Pedro Neto, Nicolas Jackson\n━━━━━━━━━━━━━━━━━━━\n👉 Who is winning this clash? Leave your predictions below! 👇\n#PremierLeague #Arsenal #Chelsea #Livescore #Matchday`,
   },
   {
     step: 3,
@@ -779,7 +779,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'In Progress (1st Half)',
     eventDetected: 'KICKOFF',
     actionTaken: 'Published Kick-off event post.',
-    facebookPost: `🟢 𝐊𝐈𝐂𝐊-𝐎𝐅𝐅! 𝐖𝐄 𝐀𝐑𝐄 𝐔𝐍𝐃𝐄𝐑𝐖𝐀𝐘! 🔥\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: 1'\n📝 Info: 🟢 Kick-off! The match has officially started!\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ 🟢 𝐊𝐈𝐂𝐊-𝐎𝐅𝐅! 𝐖𝐄 𝐀𝐑𝐄 𝐔𝐍𝐃𝐄𝐑𝐖𝐀𝐘! 🔥 ⚡\n━━━━━━━━━━━━━━━━━━━\n⏱️ 1'\n𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n📝 The whistle sounds and we are officially underway for this blockbuster clash!\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
   {
     step: 4,
@@ -789,7 +789,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'In Progress (1st Half)',
     eventDetected: 'GOAL',
     actionTaken: 'Published ⚽ GOAL post for Bukayo Saka (Assist: Martin Ødegaard).',
-    facebookPost: `⚽ 𝐆𝐎𝐎𝐎𝐀𝐀𝐀𝐋! 💥🔥\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: 14'\n📝 Info: ⚽ GOAL! Bukayo Saka scores for Arsenal!\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 1 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n🎯 Goal: 𝐁𝐮𝐤𝐚𝐲𝐨 𝐒𝐚𝐤𝐚 (Arsenal)\n👟 Assist: 𝐌𝐚𝐫𝐭𝐢𝐧 𝐎𝐝𝐞𝐠𝐚𝐚𝐫𝐝\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ 🔥 𝐆𝐎𝐎𝐎𝐀𝐀𝐀𝐋! ⚽💥 ⚡\n━━━━━━━━━━━━━━━━━━━\n⏱️ 14'\n𝐀𝐫𝐬𝐞𝐧𝐚𝐥 1 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⚽ 𝐁𝐮𝐤𝐚𝐲𝐨 𝐒𝐚𝐤𝐚\n👟 Martin Odegaard\n📝 Sensational strike rifled into the top corner!\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
   {
     step: 5,
@@ -799,7 +799,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'In Progress (1st Half)',
     eventDetected: 'GOAL_DISALLOWED',
     actionTaken: 'Edited previous goal post with [VAR DISALLOWED] prefix & updated scoreline to 0 - 0.',
-    facebookPost: `🚨 𝐍𝐎 𝐆𝐎𝐀𝐋! 𝐕𝐀𝐑 𝐎𝐕𝐄𝐑𝐓𝐔𝐑𝐍𝐄𝐃 ❌\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: 16'\n📝 Info: 🚨 Goal Disallowed by VAR: Offside in buildup\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⚠️ Previous goal by Bukayo Saka has been ruled out.\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ 🚨 𝐆𝐎𝐀𝐋 𝐃𝐈𝐒𝐀𝐋𝐋𝐎𝐖𝐄𝐃! 𝐕𝐀𝐑 𝐃𝐄𝐂𝐈𝐒𝐈𝐎𝐍! 📺❌ ⚡\n━━━━━━━━━━━━━━━━━━━\n⏱️ 16'\n𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n❌ 𝐁𝐮𝐤𝐚𝐲𝐨 𝐒𝐚𝐤𝐚\n📺 Goal disallowed for offside in buildup\n📝 Marginal offside flag halts the celebrations after VAR check!\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
   {
     step: 6,
@@ -809,7 +809,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'In Progress (1st Half)',
     eventDetected: 'PENALTY_SCORED',
     actionTaken: 'Published 🥅 PENALTY SCORED post for Cole Palmer (Chelsea). Verified single post.',
-    facebookPost: `🥅 𝐏𝐄𝐍𝐀𝐋𝐓𝐘 𝐒𝐂𝐎𝐑𝐄𝐃! 🎯⚽\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: 28'\n📝 Info: 🥅 Penalty converted! Cool as you like from the spot!\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n🎯 Penalty: 𝐂𝐨𝐥𝐞 𝐏𝐚𝐥𝐦𝐞𝐫 (Chelsea)\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ ⚽ 𝐏𝐄𝐍𝐀𝐋𝐓𝐘 𝐒𝐂𝐎𝐑𝐄𝐃! 𝐈𝐂𝐄 𝐂𝐎𝐋𝐃! 🥶🥅 ⚡\n━━━━━━━━━━━━━━━━━━━\n⏱️ 28'\n𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⚽ 𝐂𝐨𝐥𝐞 𝐏𝐚𝐥𝐦𝐞𝐫 (Penalty)\n📝 Ice in the veins! Dispatches the penalty with sheer confidence!\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
   {
     step: 7,
@@ -819,7 +819,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'In Progress (1st Half)',
     eventDetected: 'RED_CARD',
     actionTaken: 'Published 🟥 RED CARD post for Enzo Fernández (Chelsea).',
-    facebookPost: `🟥 𝐑𝐄𝐃 𝐂𝐀𝐑𝐃! 𝐎𝐅𝐅 𝐓𝐇𝐄 𝐏𝐈𝐓𝐂𝐇! 🚨\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: 39'\n📝 Info: 🟥 Red card issued! Chelsea down to 10 men!\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n🟥 Player: 𝐄𝐧𝐳𝐨 𝐅𝐞𝐫𝐧𝐚𝐧𝐝𝐞𝐳 (Chelsea)\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ 🟥 𝐑𝐄𝐃 𝐂𝐀𝐑𝐃! 𝐃𝐑𝐀𝐌𝐀 𝐈𝐍 𝐓𝐇𝐄 𝐌𝐀𝐓𝐂𝐇! 🤯 ⚡\n━━━━━━━━━━━━━━━━━━━\n⏱️ 39'\n𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n🟥 𝐄𝐧𝐳𝐨 𝐅𝐞𝐫𝐧𝐚𝐧𝐝𝐞𝐳\n📝 Straight red card issued after a reckless high-stakes challenge!\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
   {
     step: 8,
@@ -829,7 +829,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'Half Time',
     eventDetected: 'HALF_TIME',
     actionTaken: 'Published ⏱️ HALF-TIME summary post.',
-    facebookPost: `⏱️ 𝐇𝐀𝐋𝐅-𝐓𝐈𝐌𝐄 𝐖𝐇𝐈𝐒𝐓𝐋𝐄! ⏸️\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: Half-Time\n📝 Info: ⏱️ Whistle blown for the break!\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for 2nd half action! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ ⏱️ 𝐇𝐀𝐋𝐅-𝐓𝐈𝐌𝐄 𝐖𝐇𝐈𝐒𝐓𝐋𝐄! ⏸️ ⚡\n━━━━━━━━━━━━━━━━━━━\nHT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n📝 Whistle blows for the break! Intriguing first 45 minutes come to a close.\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
   {
     step: 9,
@@ -839,7 +839,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'In Progress (2nd Half)',
     eventDetected: 'GOAL',
     actionTaken: 'Published ⚽ GOAL post for Kai Havertz (Arsenal).',
-    facebookPost: `⚽ 𝐆𝐎𝐎𝐎𝐀𝐀𝐀𝐋! 💥🔥\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: 62'\n📝 Info: ⚽ GOAL! Kai Havertz heads in the equalizer!\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 1 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n🎯 Goal: 𝐊𝐚𝐢 𝐇𝐚𝐯𝐞𝐫𝐭𝐳 (Arsenal)\n👟 Assist: 𝐃𝐞𝐜𝐥𝐚𝐧 𝐑𝐢𝐜𝐞\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ 🔥 𝐆𝐎𝐎𝐎𝐀𝐀𝐀𝐋! ⚽💥 ⚡\n━━━━━━━━━━━━━━━━━━━\n⏱️ 62'\n𝐀𝐫𝐬𝐞𝐧𝐚𝐥 1 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⚽ 𝐊𝐚𝐢 𝐇𝐚𝐯𝐞𝐫𝐭𝐳\n👟 Declan Rice\n📝 Unstoppable header guided perfectly inside the far post!\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
   {
     step: 10,
@@ -849,7 +849,7 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'In Progress (2nd Half)',
     eventDetected: 'GOAL',
     actionTaken: 'Published ⚽ GOAL post for Gabriel Martinelli.',
-    facebookPost: `⚽ 𝐋𝐀𝐓𝐄 𝐆𝐎𝐎𝐎𝐀𝐀𝐀𝐋! 💥🔥\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: 90+2'\n📝 Info: ⚽ Incredible late drama! Martinelli finds the top corner!\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n🎯 Goal: 𝐆𝐚𝐛𝐫𝐢𝐞𝐥 𝐌𝐚𝐫𝐭𝐢𝐧𝐞𝐥𝐥𝐢 (Arsenal)\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ 🔥 𝐆𝐎𝐎𝐎𝐀𝐀𝐀𝐋! ⚽💥 ⚡\n━━━━━━━━━━━━━━━━━━━\n⏱️ 90+2'\n𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⚽ 𝐆𝐚𝐛𝐫𝐢𝐞𝐥 𝐌𝐚𝐫𝐭𝐢𝐧𝐞𝐥𝐥𝐢\n📝 Electrifying counter-attack finished off with ultimate composure!\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
   {
     step: 11,
@@ -859,6 +859,6 @@ export const SIMULATION_LIFECYCLE_STEPS = [
     status: 'Final / Completed',
     eventDetected: 'FULL_TIME',
     actionTaken: 'Published 🏁 FULL-TIME post. Match completed.',
-    facebookPost: `🏁 𝐅𝐔𝐋𝐋-𝐓𝐈𝐌𝐄! 𝐌𝐀𝐓𝐂𝐇 𝐄𝐍𝐃𝐄𝐃! 🏆🔥\n━━━━━━━━━━━━━━━━━━━\n🏆 PREMIER LEAGUE\n💥 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 🆚 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n⏱️ Clock: Full Time\n📝 Info: 🏁 The referee blows the final whistle! Arsenal take all 3 points!\n⚽ Score: 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n━━━━━━━━━━━━━━━━━━━\n💬 What did you think of the game? Leave your review below! 👇\n\n#PremierLeague #EPL #Arsenal #Chelsea #LiveScore`,
+    facebookPost: `⚡ 🏁 𝐅𝐔𝐋𝐋-𝐓𝐈𝐌𝐄! 𝟗𝟎 𝐌𝐈𝐍𝐔𝐓𝐄𝐒 𝐂𝐎𝐌𝐏𝐋𝐄𝐓𝐄! 🏆 ⚡\n━━━━━━━━━━━━━━━━━━━\nFT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚\n📝 Final whistle blown! An exhilarating 90 minutes comes to an end!\n━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n#PremierLeague #Arsenal #Chelsea #Livescore #LiveScore`,
   },
 ];

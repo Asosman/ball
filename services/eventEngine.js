@@ -3,6 +3,7 @@ import { buildMatchHashtags } from '../utils/hashtags.js';
 import logger from '../utils/logger.js';
 import config from '../config/env.js';
 import { getMatchFlag } from '../utils/flags.js';
+import { generateDynamicFallbackInfo } from './aiCommentary.js';
 
 /**
  * Strict Event Whitelist
@@ -200,12 +201,26 @@ export function detectScoringTeam(ev, currentMatch) {
 }
 
 /**
+ * Formats a team name for Starting XI post (with (𝐖) prefix for women teams if specified)
+ * @param {string} teamName
+ * @returns {string}
+ */
+export function formatTeamNameForStartingXI(teamName) {
+  if (!teamName) return '';
+  const isWomen = /^\(w\)\s*/i.test(teamName) || /\s*\(w\)$/i.test(teamName);
+  const cleanName = teamName.replace(/^\(w\)\s*/i, '').replace(/\s*\(w\)$/i, '').trim();
+  const boldName = makeUnicodeBold(cleanName.toUpperCase());
+  return isWomen ? `(𝐖) ${boldName}` : boldName;
+}
+
+/**
  * Builds the Facebook post body for an allowed in-game event.
  * @param {object} event
  * @param {object} currentMatch
+ * @param {string} [customInfoLine]
  * @returns {string}
  */
-export function formatEventPost(event, currentMatch) {
+export function formatEventPost(event, currentMatch, customInfoLine) {
   const clock = event.minute !== undefined && event.minute !== null ? `${event.minute}'` : (currentMatch.status?.clock || 'Live');
   const home = makeUnicodeBold(currentMatch.homeName || currentMatch.homeTeam || 'Home');
   const away = makeUnicodeBold(currentMatch.awayName || currentMatch.awayTeam || 'Away');
@@ -249,111 +264,111 @@ export function formatEventPost(event, currentMatch) {
   }
 
   let eventHeader = '📢 MATCH EVENT!';
-  let eventLine = '';
+  let eventLine = customInfoLine || generateDynamicFallbackInfo(event, currentMatch);
   const detailLines = [];
 
   switch (type) {
     case 'KICKOFF':
       eventHeader = '🟢 KICK-OFF! WE ARE UNDERWAY! 🔥';
-      eventLine = '🟢 Kick-off! The match has officially started!';
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
       break;
 
     case 'OWN_GOAL':
       eventHeader = '😱 𝐎𝐖𝐍 𝐆𝐎𝐀𝐋! 🤦‍♂️📉';
-      eventLine = '😱 Disastrous moment! The ball is turned into the back of their own net!';
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
       if (event.player) {
         const teamSuffix = event.teamName ? ` (${event.teamName})` : '';
-        detailLines.push(`🤦‍♂️ Own Goal: ${makeUnicodeBold(event.player)}${teamSuffix}`);
+        detailLines.push(`🤦‍♂️ ${makeUnicodeBold(event.player)}${teamSuffix} (OG)`);
       }
       break;
 
     case 'GOAL':
       if (event.status === 'DISALLOWED' || event.isDisallowed) {
         eventHeader = '🚨 GOAL DISALLOWED! VAR DECISION! 📺❌';
-        eventLine = '❌ Goal officially ruled out after VAR review!';
+        if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
         if (event.player) {
-          detailLines.push(`👤 Player: ${makeUnicodeBold(event.player)}`);
+          detailLines.push(`❌ ${makeUnicodeBold(event.player)}`);
         }
         if (event.disallowedReason || event.reason) {
-          detailLines.push(`📝 Reason: ${event.disallowedReason || event.reason}`);
+          detailLines.push(`📺 ${event.disallowedReason || event.reason}`);
         }
         break;
       }
       if (event.ownGoal) {
         eventHeader = '😱 𝐎𝐖𝐍 𝐆𝐎𝐀𝐋! 🤦‍♂️📉';
-        eventLine = '😱 Disastrous moment! The ball is turned into the back of their own net!';
+        if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
         if (event.player) {
           const teamSuffix = event.teamName ? ` (${event.teamName})` : '';
-          detailLines.push(`🤦‍♂️ Own Goal: ${makeUnicodeBold(event.player)}${teamSuffix}`);
+          detailLines.push(`🤦‍♂️ ${makeUnicodeBold(event.player)}${teamSuffix} (OG)`);
         }
         break;
       }
       eventHeader = '🔥 GOOOOALLLLL! ⚽💥';
-      eventLine = '⚽ GOAL! Back of the net!';
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
       if (event.player) {
-        detailLines.push(`🎯 Scorer: ${makeUnicodeBold(event.player)}`);
+        detailLines.push(`⚽ ${makeUnicodeBold(event.player)}`);
       }
       if (event.assist) {
-        detailLines.push(`👟 Assist: ${event.assist}`);
+        detailLines.push(`👟 ${event.assist}`);
       }
       break;
 
     case 'PENALTY_SCORED':
       if (event.status === 'DISALLOWED' || event.isDisallowed) {
         eventHeader = '🚨 PENALTY GOAL DISALLOWED! VAR DECISION! 📺❌';
-        eventLine = '❌ Penalty goal officially ruled out after VAR review!';
+        if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
         if (event.player) {
-          detailLines.push(`👤 Player: ${makeUnicodeBold(event.player)}`);
+          detailLines.push(`❌ ${makeUnicodeBold(event.player)}`);
         }
         if (event.disallowedReason || event.reason) {
-          detailLines.push(`📝 Reason: ${event.disallowedReason || event.reason}`);
+          detailLines.push(`📺 ${event.disallowedReason || event.reason}`);
         }
         break;
       }
       eventHeader = '⚽ PENALTY SCORED! ICE COLD! 🥶🥅';
-      eventLine = '🥅 Penalty converted successfully!';
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
       if (event.player) {
-        detailLines.push(`🎯 Scorer: ${makeUnicodeBold(event.player)} (Penalty)`);
+        detailLines.push(`⚽ ${makeUnicodeBold(event.player)} (Penalty)`);
       }
       // Note: Penalty goals strictly do not have an assist per soccer conventions
       break;
 
     case 'RED_CARD':
       eventHeader = '🟥 RED CARD! DRAMA IN THE MATCH! 🤯';
-      eventLine = event.isSecondYellow ? '🟨🟥 Red Card (Second Yellow Dismissal)!' : '🟥 Straight Red Card Dismissal!';
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
       if (event.player) {
-        detailLines.push(`👤 Player Dismissed: ${makeUnicodeBold(event.player)} 🚶‍♂️`);
+        detailLines.push(`🟥 ${makeUnicodeBold(event.player)}`);
       }
       break;
 
     case 'GOAL_DISALLOWED':
       eventHeader = '🚨 GOAL DISALLOWED! VAR DECISION! 📺❌';
-      eventLine = '❌ Goal officially ruled out after VAR review!';
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
       if (event.player) {
-        detailLines.push(`👤 Player: ${makeUnicodeBold(event.player)}`);
+        detailLines.push(`❌ ${makeUnicodeBold(event.player)}`);
       }
       if (event.disallowedReason || event.reason || event.text) {
-        detailLines.push(`📝 Reason: ${event.disallowedReason || event.reason || event.text}`);
+        detailLines.push(`📺 ${event.disallowedReason || event.reason || event.text}`);
       }
       break;
 
     case 'HALF_TIME':
     case 'HALFTIME':
       eventHeader = '⏱️ HALF-TIME WHISTLE! ⏸️';
-      eventLine = `⏱️ First half has officially ended. (HT Score: ${homeScore} - ${awayScore})`;
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
       break;
 
     case 'FULL_TIME':
     case 'FULLTIME':
     case 'FULL_TIME_PENDING_ET':
       eventHeader = '🏁 FULL-TIME! 90 MINUTES COMPLETE! 🏆';
-      eventLine = `🏁 The normal 90-minute match has ended. (Score: ${homeScore} - ${awayScore})`;
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
       break;
 
     case 'EXTRA_TIME':
     case 'EXTRA_TIME_START':
       eventHeader = '⏱️ EXTRA TIME UNDERWAY! ⚔️🔥';
-      eventLine = '⏱️ Extra time has officially begun! 30 additional minutes of play underway!';
+      if (!customInfoLine) eventLine = 'Extra time underway! 30 additional minutes of high-stakes play!';
       break;
 
     case 'AFTER_EXTRA_TIME_OR_SHOOTOUT':
@@ -361,23 +376,21 @@ export function formatEventPost(event, currentMatch) {
       const shootout = currentMatch.shootout || event.shootout;
       if (shootout && shootout.home !== undefined && shootout.away !== undefined) {
         eventHeader = '🏆 MATCH DECIDED ON PENALTIES! FINAL RESULT! 🧤⚽';
-        eventLine = `🏁 Final whistle after extra time and penalty shootout!`;
-        detailLines.push(`⏱️ Score after Extra Time: ${home} ${homeScore} - ${awayScore} ${away}`);
-        detailLines.push(`🥅 Penalty Shootout: ${home} ${shootout.home} - ${shootout.away} ${away}`);
+        if (!customInfoLine) eventLine = 'Final whistle after extra time and penalty shootout!';
+        detailLines.push(`Score after Extra Time: ${home} ${homeScore} - ${awayScore} ${away}`);
+        detailLines.push(`Penalty Shootout: ${home} ${shootout.home} - ${shootout.away} ${away}`);
       } else {
         eventHeader = '🏁 FINAL WHISTLE AFTER EXTRA TIME! 🏆🔥';
-        eventLine = `🏁 Match finished after extra time! (Final score: ${homeScore} - ${awayScore})`;
+        if (!customInfoLine) eventLine = `Match finished after extra time! (${homeScore} - ${awayScore})`;
       }
       break;
     }
 
     default:
-      // Fallback for any other event
       eventHeader = `📢 MATCH EVENT: ${type}`;
-      eventLine = `📢 Event officially recorded.`;
+      eventLine = `Action underway on the pitch!`;
   }
 
-  const standardHashtags = '#Livescore #Football #Soccer #Matchday #LiveScore #ViralFootball';
   const customHashtags = buildMatchHashtags(currentMatch.homeName, currentMatch.awayName, currentMatch.leagueName);
   const boldHeader = makeUnicodeBold(eventHeader);
 
@@ -393,8 +406,8 @@ export function formatEventPost(event, currentMatch) {
     if (detailLines.length > 0) {
       sections.push(detailLines.join('\n'));
     }
-    sections.push(`📝 Info: ${eventLine}`);
-    sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}\n${standardHashtags}`);
+    sections.push(`📝 ${eventLine}`);
+    sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
     return sections.join('\n');
   }
 
@@ -407,63 +420,59 @@ export function formatEventPost(event, currentMatch) {
     if (detailLines.length > 0) {
       sections.push(detailLines.join('\n'));
     }
-    sections.push(`📝 Info: ${eventLine}`);
-    sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}\n${standardHashtags}`);
+    sections.push(`📝 ${eventLine}`);
+    sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
     return sections.join('\n');
   }
 
   const sections = [
     `⚡ ${boldHeader} ⚡`,
     `━━━━━━━━━━━━━━━━━━━`,
-    `⏱️ Time: ${clock}`,
-    `⚽ Score: ${home} ${homeScore} - ${awayScore} ${away}`,
+    `⏱️ ${clock}`,
+    `${home} ${homeScore} - ${awayScore} ${away}`,
   ];
 
   if (detailLines.length > 0) {
     sections.push(detailLines.join('\n'));
   }
 
-  sections.push(`📝 Info: ${eventLine}`);
-  sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}\n${standardHashtags}`);
+  sections.push(`📝 ${eventLine}`);
+  sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
 
   return sections.join('\n');
 }
 
 /**
  * Builds the lineup post body.
- * Formatting: One player per line, no bullets.
+ * Formatting:
+ * (𝐖) 𝐌𝐀𝐍𝐂𝐇𝐄𝐒𝐓𝐄𝐑 𝐔𝐍𝐈𝐓𝐄𝐃 startingXI; player1, player2, ...
+ *
+ * (𝐖) 𝐒𝐇𝐄𝐅𝐅𝐈𝐄𝐋𝐃 𝐔𝐍𝐈𝐓𝐄𝐃 startingXI; player1, player2, ...
+ * ━━━━━━━━━━━━━━━━━━━
+ * 👉 Who is winning this clash? Leave your predictions below! 👇
+ * #Livescore #FootballNews #Matchday #LiveScore
+ *
  * @param {object} currentMatch
  * @param {string[]} homeLineup
  * @param {string[]} awayLineup
  * @returns {string}
  */
 export function formatLineupPost(currentMatch, homeLineup, awayLineup) {
-  const homeBold = makeUnicodeBold(currentMatch.homeName.toUpperCase());
-  const awayBold = makeUnicodeBold(currentMatch.awayName.toUpperCase());
-  const homeSection = `${homeBold} startingXI; ${homeLineup.join(', ')}`;
-  const awaySection = `${awayBold} startingXI; ${awayLineup.join(', ')}`;
+  const homeHeader = formatTeamNameForStartingXI(currentMatch.homeName || currentMatch.homeTeam || 'Home');
+  const awayHeader = formatTeamNameForStartingXI(currentMatch.awayName || currentMatch.awayTeam || 'Away');
+  
+  const homeSection = `${homeHeader} startingXI; ${homeLineup.join(', ')}`;
+  const awaySection = `${awayHeader} startingXI; ${awayLineup.join(', ')}`;
   const hashtags = buildMatchHashtags(currentMatch.homeName, currentMatch.awayName, currentMatch.leagueName);
-  const standardHashtags = '#StartingXI #Lineups #Football #Matchday #LineupNews';
 
-  const heading = makeUnicodeBold("OFFICIAL STARTING LINEUPS ARE OUT!");
-  const vsBoldLine = `💥 ${homeBold} 🆚 ${awayBold}`;
-
-  const top = [
-    `🔥 ${heading} 📋⚽`,
-    vsBoldLine,
-    `━━━━━━━━━━━━━━━━━━━`,
+  return [
     homeSection,
-  ].join('\n');
-
-  const bottom = [
+    '',
     awaySection,
-    `━━━━━━━━━━━━━━━━━━━`,
-    `👉 Who is winning this clash? Leave your predictions below! 👇`,
+    '━━━━━━━━━━━━━━━━━━━',
+    '👉 Who is winning this clash? Leave your predictions below! 👇',
     hashtags,
-    standardHashtags,
   ].join('\n');
-
-  return `${top}\n\n${bottom}`;
 }
 
 /**
@@ -678,7 +687,7 @@ export function formatFixturesPost(matches, dateDisplay, options = {}) {
     });
   }
 
-  const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore #ViralMatch #FootballFans';
+  const standardHashtags = '#Livescore #FootballNews #Matchday #LiveScore';
   const callToAction = isYesterday
     ? '💬 What do you think about the scorelines? 👇'
     : '💬 Drop your predictions and thoughts below! 👇';

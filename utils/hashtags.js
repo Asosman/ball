@@ -1,6 +1,6 @@
 // utils/hashtags.js
 
-const STANDARD_HASHTAGS = ['#Livescore', '#FootballNews', '#Matchday', '#LiveScore'];
+const STANDARD_HASHTAGS = ['#Livescore', '#FootballNews', '#Matchday', '#LiveScore', '#Football'];
 
 const LEAGUE_HASHTAG_MAP = {
   'uefa champions league': ['#UCL'],
@@ -25,8 +25,10 @@ const LEAGUE_HASHTAG_MAP = {
   'copa del rey': ['#CopaDelRey'],
   'copa libertadores': ['#Libertadores'],
   'fifa world cup': ['#WorldCup'],
-  'afc champions league elite east': ['#ACLElite', '#ACLEast'],
-  'afc champions league elite west': ['#ACLElite', '#ACLWest'],
+  'afc champions league elite east': ['#ACLElite'],
+  'afc champions league elite west': ['#ACLElite'],
+  'saudi pro league': ['#SaudiProLeague', '#RoshnSaudiLeague'],
+  'roshn saudi league': ['#RoshnSaudiLeague'],
 };
 
 /**
@@ -52,42 +54,49 @@ export function sanitizeToHashtag(str) {
 }
 
 /**
- * Builds standard and match-specific hashtags.
+ * Builds standard and match-specific hashtags strictly capped at 4 to 5 hashtags.
  * @param {string} homeName
  * @param {string} awayName
  * @param {string} leagueName
  * @returns {string}
  */
 export function buildMatchHashtags(homeName, awayName, leagueName) {
-  const tags = new Set(STANDARD_HASHTAGS);
+  const customTags = [];
 
-  // League specific
+  // Match specific: League
   if (leagueName) {
     const key = leagueName.trim().toLowerCase();
     const mapped = LEAGUE_HASHTAG_MAP[key];
-    if (mapped) {
-      mapped.forEach((t) => tags.add(t));
+    if (mapped && mapped.length > 0) {
+      customTags.push(mapped[0]);
     } else {
       const customTag = sanitizeToHashtag(leagueName);
-      if (customTag) tags.add(customTag);
+      if (customTag && !customTags.includes(customTag)) customTags.push(customTag);
     }
   }
 
-  // Home and Away teams
+  // Match specific: Home and Away teams
   const homeTag = sanitizeToHashtag(homeName);
-  if (homeTag) tags.add(homeTag);
+  if (homeTag && !customTags.includes(homeTag)) customTags.push(homeTag);
 
   const awayTag = sanitizeToHashtag(awayName);
-  if (awayTag) tags.add(awayTag);
+  if (awayTag && !customTags.includes(awayTag)) customTags.push(awayTag);
 
-  // Format with standard line break
-  const standardList = [...STANDARD_HASHTAGS].join(' ');
-  const matchSpecific = [...tags].filter((t) => !STANDARD_HASHTAGS.includes(t)).join(' ');
-
-  if (matchSpecific) {
-    return `${standardList}\n${matchSpecific}`;
+  // Combine custom tags + standard fallback pool
+  const result = [];
+  for (const t of customTags) {
+    if (!result.includes(t)) result.push(t);
+    if (result.length >= 5) break;
   }
-  return standardList;
+
+  for (const t of STANDARD_HASHTAGS) {
+    if (result.length >= 5) break;
+    if (!result.includes(t)) result.push(t);
+  }
+
+  // Strictly enforce 4 to 5 hashtags
+  const finalTags = result.slice(0, 5);
+  return finalTags.join(' ');
 }
 
 export default buildMatchHashtags;
