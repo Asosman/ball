@@ -53,6 +53,7 @@ const config = Object.freeze({
     pollIntervalMs: parsePositiveInt('POLL_INTERVAL_MS', 30000, 5000),
     maxMonitoredMatches: parsePositiveInt('MAX_MONITORED_MATCHES', 15, 1),
     lineupGraceMinutes: parsePositiveInt('LINEUP_GRACE_MINUTES_BEFORE_KICKOFF', 0, 0),
+    goalResolutionDelayMs: parsePositiveInt('GOAL_RESOLUTION_DELAY_MS', 10000, 0),
   },
   espn: {
     requestTimeoutMs: parsePositiveInt('ESPN_REQUEST_TIMEOUT_MS', 15000, 1000),

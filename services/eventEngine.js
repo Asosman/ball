@@ -1489,17 +1489,22 @@ export function compareMatchState(prevRecord, currentMatch) {
         const newSig = getEventContentSignature(matchedEvent);
         matchedEvent.lastContentSignature = newSig;
 
-        if (matchedEvent.facebookPostId) {
+        const isGoalType = (matchedEvent.type === 'GOAL' || matchedEvent.type === 'OWN_GOAL' || matchedEvent.type === 'PENALTY_SCORED');
+
+        // CRITICAL USER RULE:
+        // Stop editing goal posts created even if assist's name is resolved;
+        // let it not update or create new posts if a post has already been made about that particular goal.
+        if (isGoalType && matchedEvent.facebookPostId) {
+          logger.info(`[GOAL POST IMMUTABLE] Post ${matchedEvent.facebookPostId} already created for goal ${matchedEvent.eventId}. Skipping Facebook post edit (assists/details resolved). Goal post remains as originally created.`);
+        } else if (matchedEvent.facebookPostId && !isGoalType) {
           logger.info(`[EVENT UPDATE] Queueing update for Facebook post ${matchedEvent.facebookPostId} (${matchedEvent.eventId}) with newly resolved details.`);
           const editPayload = {
             postId: matchedEvent.facebookPostId,
-            event: { ...matchedEvent }, // strictly preserves matchedEvent.scoreAfterEvent!
+            event: { ...matchedEvent },
             eventId: matchedEvent.eventId,
             eventKey: matchedEvent.eventId,
-            goalKey: matchedEvent.goalKey,
             newContentSig: newSig,
           };
-          goalPostEdits.push(editPayload);
           eventPostEdits.push(editPayload);
         }
       }
@@ -1619,6 +1624,42 @@ export function compareMatchState(prevRecord, currentMatch) {
         lastContentSignature: null,
       };
       continue;
+    }
+
+    // User explicit rule:
+    // "let it not update or create new posts if a post has already been made about that particular goal"
+    if (type === 'GOAL' || type === 'PENALTY_SCORED' || type === 'OWN_GOAL') {
+      const alreadyPostedGoal = Object.values(canonicalEvents).find((eg) => {
+        if (!eg.facebookPostId && eg.status !== 'POSTED' && eg.status !== 'VALID') return false;
+        if (eg.status === 'DISALLOWED' || eg.isDisallowed) return false;
+        if (eg.type !== 'GOAL' && eg.type !== 'OWN_GOAL' && eg.type !== 'PENALTY_SCORED') return false;
+
+        // 1. Same scoreline
+        if (scoreAfterEvent && eg.scoreAfterEvent &&
+            scoreAfterEvent.home === eg.scoreAfterEvent.home &&
+            scoreAfterEvent.away === eg.scoreAfterEvent.away &&
+            (scoreAfterEvent.home > 0 || scoreAfterEvent.away > 0)) {
+          return true;
+        }
+        // 2. Same player and close minute
+        if (ev.player && eg.player &&
+            (String(ev.player).toLowerCase().trim() === String(eg.player).toLowerCase().trim() ||
+             String(ev.player).toLowerCase().includes(String(eg.player).toLowerCase().trim()) ||
+             String(eg.player).toLowerCase().includes(String(ev.player).toLowerCase().trim())) &&
+            Math.abs((eg.minute || 0) - minute) <= 3) {
+          return true;
+        }
+        // 3. Same period and minute for same team
+        if (Math.abs((eg.minute || 0) - minute) <= 1 && (eg.period || 1) === period && eg.teamId === teamId) {
+          return true;
+        }
+        return false;
+      });
+
+      if (alreadyPostedGoal) {
+        logger.info(`[DUPLICATE GOAL BLOCKED] Post ${alreadyPostedGoal.facebookPostId || alreadyPostedGoal.eventId} has already been made about this goal. Skipping new post creation.`);
+        continue;
+      }
     }
 
     const newRecord = {

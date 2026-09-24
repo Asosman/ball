@@ -150,21 +150,26 @@ export async function updatePagePost(postId, message) {
   }
 
   const url = `https://graph.facebook.com/v19.0/${postId}`;
-  const result = await callGraphApiWithRetry('POST', url, {
-    message,
-    access_token: config.facebook.accessToken,
-  });
-
-  if (result?.success || result?.id) {
-    publishedPostsLog.unshift({
-      id: postId,
-      action: 'UPDATE',
-      content: message,
-      timestamp: new Date().toISOString(),
-      status: 'UPDATED',
+  try {
+    const result = await callGraphApiWithRetry('POST', url, {
+      message,
+      access_token: config.facebook.accessToken,
     });
-    logger.info(`Facebook post updated successfully: id=${postId}`);
-    return true;
+
+    if (result?.success || result?.id) {
+      publishedPostsLog.unshift({
+        id: postId,
+        action: 'UPDATE',
+        content: message,
+        timestamp: new Date().toISOString(),
+        status: 'UPDATED',
+      });
+      logger.info(`Facebook post updated successfully: id=${postId}`);
+      return true;
+    }
+  } catch (err) {
+    logger.warn(`Could not update Facebook post ${postId}: ${err.message}`);
+    return false;
   }
 
   return false;

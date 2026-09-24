@@ -1,5 +1,6 @@
 // test-fixes.js
 import assert from 'assert';
+import config from './config/env.js';
 import { formatEventPost, formatLineupPost, formatFixturesPost, compareMatchState, makeUnicodeBold } from './services/eventEngine.js';
 import { getPostSpacingWaitMs, MIN_POST_SPACING_MS, TARGET_POST_SPACING_MS } from './services/updateScheduler.js';
 import { COMPREHENSIVE_LEAGUES } from './services/espn.js';
@@ -438,6 +439,160 @@ assert(goal2.length > 5, 'Goal 2 commentary must not be empty');
 assert.notStrictEqual(goal1, goal2, 'Two goal events should have unique dynamic info lines');
 console.log('✅ PASS: Dynamic info generator produces unique lines for different events.\n');
 
+// ---------------------------------------------------------------------------
+// TEST 10: Stop Editing Created Goal Posts When Assist Resolves & Prevent Duplicate Posts
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 10] Goal Post Immutability & Duplicate Prevention:');
+const goalFixtureId = 'match-goal-test-999';
+const existingGoalPostId = 'fb-goal-post-55';
+
+const matchWithPostedGoal = {
+  fixtureId: goalFixtureId,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueName: 'Premier League',
+  status: { state: 'in', description: 'In Progress', period: 1 },
+  score: { home: 1, away: 0 },
+  events: {
+    [`${goalFixtureId}:GOAL:p1:m24:tarsenal:idx0`]: {
+      eventId: `${goalFixtureId}:GOAL:p1:m24:tarsenal:idx0`,
+      rawId: 'play-goal-1',
+      type: 'GOAL',
+      minute: 24,
+      period: 1,
+      player: 'Bukayo Saka',
+      assist: null, // Initially posted without assist
+      teamId: 'arsenal',
+      homeScore: 1,
+      awayScore: 0,
+      scoreAfterEvent: { home: 1, away: 0 },
+      facebookPostId: existingGoalPostId,
+      status: 'VALID',
+    },
+  },
+  facebookPosts: {
+    [existingGoalPostId]: {
+      postId: existingGoalPostId,
+      eventId: `${goalFixtureId}:GOAL:p1:m24:tarsenal:idx0`,
+      type: 'GOAL',
+      createdAt: new Date().toISOString(),
+    },
+  },
+};
+
+// Scenario A: Feed updates with resolved assist name ("Martin Odegaard")
+const polledWithResolvedAssist = {
+  fixtureId: goalFixtureId,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueName: 'Premier League',
+  status: { state: 'in', description: 'In Progress', clock: "28'", period: 1 },
+  score: { home: 1, away: 0 },
+  events: [
+    {
+      type: 'GOAL',
+      minute: 24,
+      period: 1,
+      player: 'Bukayo Saka',
+      assist: 'Martin Odegaard', // Assist resolved later by ESPN
+      teamId: 'arsenal',
+      rawId: 'play-goal-1',
+    },
+  ],
+};
+
+const assistDiff = compareMatchState(matchWithPostedGoal, polledWithResolvedAssist);
+console.log(`- New events queued when assist resolved: ${assistDiff.newEvents.length}`);
+console.log(`- Goal post edits queued when assist resolved: ${assistDiff.goalPostEdits.length}`);
+console.log(`- Event post edits queued when assist resolved: ${assistDiff.eventPostEdits.length}`);
+
+assert.strictEqual(assistDiff.goalPostEdits.length, 0, 'Must NEVER queue goal post edits when assist is resolved');
+assert.strictEqual(assistDiff.eventPostEdits.length, 0, 'Must NEVER queue event post edits for already created goal posts');
+assert.strictEqual(assistDiff.newEvents.length, 0, 'Must NEVER create a new post when assist is resolved');
+console.log('✅ Requirement 1 Verified: Created goal post is NOT edited when assist resolves.');
+
+// Scenario B: Feed sends another representation of the same goal (e.g. commentary text or different ID)
+const polledWithDuplicateRepresentation = {
+  fixtureId: goalFixtureId,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueName: 'Premier League',
+  status: { state: 'in', description: 'In Progress', clock: "30'", period: 1 },
+  score: { home: 1, away: 0 },
+  events: [
+    {
+      type: 'GOAL',
+      minute: 24,
+      period: 1,
+      player: 'Bukayo Saka',
+      teamId: 'arsenal',
+      text: 'Goal! Arsenal 1, Chelsea 0. Bukayo Saka left footed shot.',
+      scoreAfterEvent: { home: 1, away: 0 },
+    },
+  ],
+};
+
+const duplicateDiff = compareMatchState(matchWithPostedGoal, polledWithDuplicateRepresentation);
+console.log(`- New events queued for duplicate representation: ${duplicateDiff.newEvents.length}`);
+assert.strictEqual(duplicateDiff.newEvents.length, 0, 'Must NEVER create a duplicate post for an already posted goal');
+assert.strictEqual(duplicateDiff.goalPostEdits.length, 0, 'Must NEVER queue edits for duplicate representation');
+console.log('✅ Requirement 2 Verified: Duplicate post creation completely prevented.\n');
+
+// ---------------------------------------------------------------------------
+// TEST 11: Goal Delay For Scorer and Assist Name Resolution Before Posting
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 11] Goal Resolution Delay and Posting With or Without Names:');
+
+// Case A: Goal posted with names resolved (scorer and assist present)
+const goalWithBothNames = {
+  type: 'GOAL',
+  minute: 34,
+  player: 'Ella Toone',
+  assist: 'Maya Le Tissier',
+  scoreAfterEvent: { home: 1, away: 0 },
+};
+const postWithBoth = formatEventPost(goalWithBothNames, matchContext);
+console.log('Post with scorer and assist resolved:\n' + postWithBoth + '\n');
+assert(postWithBoth.includes('⚽ 𝐄𝐥𝐥𝐚 𝐓𝐨𝐨𝐧𝐞') || postWithBoth.includes('⚽ Ella Toone'), 'Must show soccer emoji aligned with scorer name');
+assert(postWithBoth.includes('👟 Maya Le Tissier'), 'Must show shoe emoji aligned with assist name');
+assert(!postWithBoth.includes('Scorer:'), 'Must NOT have Scorer: label');
+assert(!postWithBoth.includes('Assist:'), 'Must NOT have Assist: label');
+assert(!postWithBoth.includes('Score:'), 'Must NOT have Score: label');
+
+// Case B: Goal posted when assist name is NOT resolved
+const goalWithoutAssist = {
+  type: 'GOAL',
+  minute: 34,
+  player: 'Ella Toone',
+  assist: null,
+  scoreAfterEvent: { home: 1, away: 0 },
+};
+const postWithoutAssist = formatEventPost(goalWithoutAssist, matchContext);
+console.log('Post without assist resolved:\n' + postWithoutAssist + '\n');
+assert(postWithoutAssist.includes('⚽ 𝐄𝐥𝐥𝐚 𝐓𝐨𝐨𝐧𝐞') || postWithoutAssist.includes('⚽ Ella Toone'), 'Must show soccer emoji with scorer');
+assert(!postWithoutAssist.includes('👟'), 'Must not have shoe emoji when assist is null');
+assert(!postWithoutAssist.includes('Assist:'), 'Must NOT have Assist: label');
+
+// Case C: Goal posted when neither scorer nor assist is resolved
+const goalWithoutNames = {
+  type: 'GOAL',
+  minute: 34,
+  player: null,
+  assist: null,
+  scoreAfterEvent: { home: 1, away: 0 },
+};
+const postWithoutNames = formatEventPost(goalWithoutNames, matchContext);
+console.log('Post without names:\n' + postWithoutNames + '\n');
+assert(!postWithoutNames.includes('Scorer:'), 'Must NOT have Scorer: label');
+assert(!postWithoutNames.includes('Assist:'), 'Must NOT have Assist: label');
+assert(!postWithoutNames.includes('⚽ null'), 'Must not display null scorer');
+assert(postWithoutNames.includes('𝐆𝐎𝐎𝐎𝐎𝐀𝐋𝐋𝐋𝐋𝐋') || postWithoutNames.includes('GOOOOALLLLL'), 'Must have goal header');
+
+// Verify config default delay for goal resolution is 10000ms (10 seconds)
+assert.strictEqual(config.monitoring.goalResolutionDelayMs, 10000, 'Config goalResolutionDelayMs must default to 10000 ms (10 seconds)');
+console.log(`- Configured goal resolution delay: ${config.monitoring.goalResolutionDelayMs / 1000} seconds`);
+console.log('✅ PASS: Goal resolution delay and posts with/without resolved names verified.\n');
+
 console.log('====================================================');
-console.log('  🎉 ALL 9 TESTS PASSED! ALL FIXES VERIFIED.');
+console.log('  🎉 ALL 11 TESTS PASSED! ALL FIXES VERIFIED.');
 console.log('====================================================\n');

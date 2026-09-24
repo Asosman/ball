@@ -304,6 +304,23 @@ class MonitoringManager {
           continue;
         }
 
+        // PRE-CHECK 1b: For goal events, ensure no post has already been made about this particular goal
+        if (ev.type === 'GOAL' || ev.type === 'PENALTY_SCORED' || ev.type === 'OWN_GOAL') {
+          const alreadyPostedGoal = Object.values(canonicalEvents).find((e) =>
+            e.eventId !== ev.eventId &&
+            (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
+            e.facebookPostId &&
+            e.status !== 'DISALLOWED' &&
+            !e.isDisallowed &&
+            ((e.scoreAfterEvent && ev.scoreAfterEvent && e.scoreAfterEvent.home === ev.scoreAfterEvent.home && e.scoreAfterEvent.away === ev.scoreAfterEvent.away && (ev.scoreAfterEvent.home > 0 || ev.scoreAfterEvent.away > 0)) ||
+             (e.player && ev.player && String(e.player).toLowerCase().trim() === String(ev.player).toLowerCase().trim() && Math.abs((e.minute || 0) - (ev.minute || 0)) <= 3))
+          );
+          if (alreadyPostedGoal) {
+            logger.warn(`[DUPLICATE GOAL PROTECTION] A post has already been made (${alreadyPostedGoal.facebookPostId}) for this goal. Skipping new post.`);
+            continue;
+          }
+        }
+
         // PRE-CHECK 2: Special single-occurrence lifecycle events per match (HALF_TIME, KICKOFF, FULL_TIME)
         if (ev.type === 'HALF_TIME') {
           const alreadyHasHtPost =
@@ -338,6 +355,74 @@ class MonitoringManager {
           if (alreadyHasFtPost) {
             logger.warn(`[DUPLICATE PROTECTION] Full-time post already exists for match ${fixtureId}. Skipping duplicate publish.`);
             continue;
+          }
+        }
+
+        // GOAL RESOLUTION DELAY:
+        // Delay ~10 seconds to determine whether scorer and assist names are resolved before posting
+        const isGoalType = ev.type === 'GOAL' || ev.type === 'PENALTY_SCORED' || ev.type === 'OWN_GOAL';
+        if (isGoalType) {
+          const goalDelayMs = config.monitoring?.goalResolutionDelayMs !== undefined
+            ? config.monitoring.goalResolutionDelayMs
+            : (config.goalResolutionDelayMs !== undefined ? config.goalResolutionDelayMs : 10000);
+
+          if (goalDelayMs > 0) {
+            logger.info(`[GOAL RESOLUTION DELAY] Goal scored in ${currentMatch.homeName} vs ${currentMatch.awayName} (${ev.eventId}). Delaying for ${goalDelayMs / 1000}s to know whether scorer and assist names resolve...`);
+            await new Promise((resolve) => setTimeout(resolve, goalDelayMs));
+          }
+
+          // After delay: Re-check whether scorer and assist names have resolved from ESPN
+          try {
+            const refreshedMatch = await fetchMatchDetails(fixtureId, leagueSlug, prevRecord);
+            if (refreshedMatch?.events?.length > 0) {
+              const resolvedGoal = refreshedMatch.events.find((re) =>
+                (re.type === ev.type || (ev.type === 'GOAL' && (re.type === 'OWN_GOAL' || re.type === 'PENALTY_SCORED')) || re.type === 'GOAL_DISALLOWED') &&
+                ((re.id && ev.rawId && String(re.id) === String(ev.rawId)) ||
+                 (re.scoreAfterEvent && ev.scoreAfterEvent && re.scoreAfterEvent.home === ev.scoreAfterEvent.home && re.scoreAfterEvent.away === ev.scoreAfterEvent.away) ||
+                 (Math.abs((re.minute || 0) - (ev.minute || 0)) <= 2 && (!re.teamId || !ev.teamId || String(re.teamId) === String(ev.teamId))))
+              );
+
+              if (resolvedGoal) {
+                // If disallowed during delay, do not publish
+                if (resolvedGoal.type === 'GOAL_DISALLOWED' || resolvedGoal.status === 'DISALLOWED' || resolvedGoal.isDisallowed) {
+                  logger.warn(`[GOAL RESOLUTION] Goal ${ev.eventId} was disallowed during delay. Skipping publish.`);
+                  canonicalEvents[ev.eventId] = {
+                    ...canonicalEvents[ev.eventId],
+                    status: 'DISALLOWED',
+                    isDisallowed: true,
+                  };
+                  continue;
+                }
+
+                if (resolvedGoal.player && !ev.player) {
+                  logger.info(`[GOAL RESOLUTION] Scorer name resolved after delay: "${resolvedGoal.player}"`);
+                  ev.player = resolvedGoal.player;
+                }
+                if (resolvedGoal.assist && !ev.assist && ev.type !== 'PENALTY_SCORED') {
+                  logger.info(`[GOAL RESOLUTION] Assist name resolved after delay: "${resolvedGoal.assist}"`);
+                  ev.assist = resolvedGoal.assist;
+                }
+                if (resolvedGoal.ownGoal && !ev.ownGoal) {
+                  ev.ownGoal = true;
+                  ev.type = 'OWN_GOAL';
+                }
+                if (resolvedGoal.scoreAfterEvent) {
+                  ev.scoreAfterEvent = resolvedGoal.scoreAfterEvent;
+                }
+                if (refreshedMatch.score) {
+                  currentMatch.score = refreshedMatch.score;
+                }
+
+                if (canonicalEvents[ev.eventId]) {
+                  canonicalEvents[ev.eventId].player = ev.player;
+                  canonicalEvents[ev.eventId].assist = ev.assist;
+                  canonicalEvents[ev.eventId].ownGoal = ev.ownGoal;
+                  canonicalEvents[ev.eventId].scoreAfterEvent = ev.scoreAfterEvent;
+                }
+              }
+            }
+          } catch (err) {
+            logger.warn(`[GOAL RESOLUTION] Error verifying resolved names after delay: ${err.message}`);
           }
         }
 
@@ -382,6 +467,13 @@ class MonitoringManager {
       for (const edit of editsToApply) {
         if (!edit.postId) continue;
 
+        // User explicit rule: Stop editing goal posts created even if assists name is resolved
+        const isGoalType = edit.event?.type === 'GOAL' || edit.event?.type === 'OWN_GOAL' || edit.event?.type === 'PENALTY_SCORED';
+        if (isGoalType && !edit.isDisallowed) {
+          logger.info(`[GOAL EDIT DISABLED] Post ${edit.postId} for goal ${edit.eventId} will not be updated on Facebook (assists/details resolved). Goal posts are immutable.`);
+          continue;
+        }
+
         const postRecord = canonicalFacebookPosts[edit.postId] || prevRecord?.facebookPosts?.[edit.postId];
         if (postRecord) {
           registerPostSchedule(postRecord);
@@ -416,10 +508,18 @@ class MonitoringManager {
       // 6b. Process any held pending updates whose 2–5 min delay has now elapsed
       for (const postRecord of Object.values(canonicalFacebookPosts)) {
         if (!postRecord?.pendingUpdate) continue;
+
+        const pending = postRecord.pendingUpdate;
+        const isGoalType = pending.event?.type === 'GOAL' || pending.event?.type === 'OWN_GOAL' || pending.event?.type === 'PENALTY_SCORED';
+        if (isGoalType && !pending.isDisallowed) {
+          logger.info(`[GOAL EDIT DISABLED] Dropping pending edit for goal post ${postRecord.postId}.`);
+          delete postRecord.pendingUpdate;
+          continue;
+        }
+
         registerPostSchedule(postRecord);
 
         if (isUpdateAllowed(postRecord)) {
-          const pending = postRecord.pendingUpdate;
           const updatedMsg = formatEventPost(pending.event, currentMatch);
           logger.info(`[UPDATE SCHEDULER] Post ${postRecord.postId} (${pending.eventId}) waiting window (2–5 min) has elapsed. Applying scheduled update...`);
           const success = await this.facebook.updatePagePost(postRecord.postId, updatedMsg);
