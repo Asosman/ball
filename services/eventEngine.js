@@ -214,6 +214,42 @@ export function formatTeamNameForStartingXI(teamName) {
 }
 
 /**
+ * Matches a player name against official match lineups / squad lists.
+ * Returns the official matched player name if found, or null.
+ * @param {string} targetName
+ * @param {string[]} lineupList
+ * @returns {string|null}
+ */
+export function findMatchingLineupPlayer(targetName, lineupList = []) {
+  if (!targetName || typeof targetName !== 'string') return null;
+  const cleanTarget = targetName.toLowerCase().trim().replace(/^(mr|coach|manager)\.?\s+/i, '');
+  if (!cleanTarget || cleanTarget.length < 2) return null;
+
+  const targetParts = cleanTarget.split(/\s+/).filter(Boolean);
+  const targetSurname = targetParts[targetParts.length - 1];
+
+  for (const candidate of lineupList) {
+    if (!candidate || typeof candidate !== 'string') continue;
+    const cleanCand = candidate.toLowerCase().trim();
+    if (cleanCand === cleanTarget) return candidate;
+
+    // Full name inclusion
+    if (cleanCand.includes(cleanTarget) || cleanTarget.includes(cleanCand)) {
+      return candidate;
+    }
+
+    // Match surname if surname is at least 3 letters
+    const candParts = cleanCand.split(/\s+/).filter(Boolean);
+    const candSurname = candParts[candParts.length - 1];
+    if (targetSurname.length >= 3 && candSurname === targetSurname) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Builds the Facebook post body for an allowed in-game event.
  * @param {object} event
  * @param {object} currentMatch
@@ -406,7 +442,7 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
     if (detailLines.length > 0) {
       sections.push(detailLines.join('\n'));
     }
-    sections.push(`📝 ${eventLine}`);
+    // Info removed from half-time per user instruction
     sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
     return sections.join('\n');
   }
@@ -420,7 +456,7 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
     if (detailLines.length > 0) {
       sections.push(detailLines.join('\n'));
     }
-    sections.push(`📝 ${eventLine}`);
+    // Info removed from full-time per user instruction
     sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
     return sections.join('\n');
   }
@@ -436,7 +472,12 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
     sections.push(detailLines.join('\n'));
   }
 
-  sections.push(`📝 ${eventLine}`);
+  const isKickoff = (type === 'KICKOFF');
+  // Info removed from kick-off per user instruction; retained for other match events
+  if (!isKickoff && eventLine) {
+    sections.push(`📝 ${eventLine}`);
+  }
+
   sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
 
   return sections.join('\n');
@@ -1490,22 +1531,28 @@ export function compareMatchState(prevRecord, currentMatch) {
         matchedEvent.lastContentSignature = newSig;
 
         const isGoalType = (matchedEvent.type === 'GOAL' || matchedEvent.type === 'OWN_GOAL' || matchedEvent.type === 'PENALTY_SCORED');
+        const isDisallowedGoal = Boolean(matchedEvent.isDisallowed || matchedEvent.status === 'DISALLOWED');
 
         // CRITICAL USER RULE:
         // Stop editing goal posts created even if assist's name is resolved;
-        // let it not update or create new posts if a post has already been made about that particular goal.
-        if (isGoalType && matchedEvent.facebookPostId) {
+        // EXCEPTION: Update goal if the event that came in after goal is goal disallowed!
+        if (isGoalType && matchedEvent.facebookPostId && !isDisallowedGoal) {
           logger.info(`[GOAL POST IMMUTABLE] Post ${matchedEvent.facebookPostId} already created for goal ${matchedEvent.eventId}. Skipping Facebook post edit (assists/details resolved). Goal post remains as originally created.`);
-        } else if (matchedEvent.facebookPostId && !isGoalType) {
-          logger.info(`[EVENT UPDATE] Queueing update for Facebook post ${matchedEvent.facebookPostId} (${matchedEvent.eventId}) with newly resolved details.`);
+        } else if (matchedEvent.facebookPostId) {
+          logger.info(`[EVENT UPDATE] Queueing update for Facebook post ${matchedEvent.facebookPostId} (${matchedEvent.eventId}) with newly resolved details (isDisallowed=${isDisallowedGoal}).`);
           const editPayload = {
             postId: matchedEvent.facebookPostId,
             event: { ...matchedEvent },
             eventId: matchedEvent.eventId,
             eventKey: matchedEvent.eventId,
+            goalKey: matchedEvent.goalKey,
             newContentSig: newSig,
+            isDisallowed: isDisallowedGoal,
           };
           eventPostEdits.push(editPayload);
+          if (isDisallowedGoal) {
+            goalPostEdits.push(editPayload);
+          }
         }
       }
       continue;
@@ -1662,6 +1709,29 @@ export function compareMatchState(prevRecord, currentMatch) {
       }
     }
 
+    // Red card lineup validation:
+    // Ensure red cards are only attributed to players actually in the match's lineup/squad.
+    // If a coach, manager, staff member, or non-lineup person was detected, reject the event!
+    if (type === 'RED_CARD') {
+      const lineupList = [
+        ...(currentMatch.lineups?.home || []),
+        ...(currentMatch.lineups?.away || []),
+        ...(currentMatch.lineups?.allHome || []),
+        ...(currentMatch.lineups?.allAway || []),
+        ...(currentMatch.lineups?.benchHome || []),
+        ...(currentMatch.lineups?.benchAway || []),
+      ];
+
+      if (lineupList.length >= 7) {
+        const matchedLineupPlayer = findMatchingLineupPlayer(ev.player, lineupList);
+        if (!matchedLineupPlayer) {
+          logger.warn(`[RED CARD REJECTED] Player "${ev.player}" is not in the match lineup for ${currentMatch.homeName} vs ${currentMatch.awayName}. Rejecting invalid red card.`);
+          continue;
+        }
+        ev.player = matchedLineupPlayer;
+      }
+    }
+
     const newRecord = {
       eventId,
       eventKey: eventId,
@@ -1726,6 +1796,7 @@ export default {
   isTopLeague,
   splitMatchesByTier,
   compareMatchState,
+  findMatchingLineupPlayer,
   getCanonicalEventId,
   getEventContentSignature,
 };

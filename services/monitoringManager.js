@@ -5,7 +5,7 @@ import db from './db.js';
 import realFacebook from './facebook.js';
 import mockFacebook from '../mock/mockFacebookClient.js';
 import { fetchMatchDetails } from './espn.js';
-import { compareMatchState, formatEventPost, formatLineupPost, isWhitelistedEvent } from './eventEngine.js';
+import { compareMatchState, formatEventPost, formatLineupPost, isWhitelistedEvent, findMatchingLineupPlayer } from './eventEngine.js';
 import {
   calculateScheduledUpdateTime,
   isUpdateAllowed,
@@ -293,6 +293,26 @@ class MonitoringManager {
           continue;
         }
 
+        // PRE-CHECK 0: Red card lineup verification
+        if (ev.type === 'RED_CARD') {
+          const lineupList = [
+            ...(currentMatch.lineups?.home || []),
+            ...(currentMatch.lineups?.away || []),
+            ...(currentMatch.lineups?.allHome || []),
+            ...(currentMatch.lineups?.allAway || []),
+            ...(currentMatch.lineups?.benchHome || []),
+            ...(currentMatch.lineups?.benchAway || []),
+          ];
+          if (lineupList.length >= 7) {
+            const matchedPlayer = findMatchingLineupPlayer(ev.player, lineupList);
+            if (!matchedPlayer) {
+              logger.warn(`[RED CARD REJECTED] Player "${ev.player}" is not in the match lineup for ${currentMatch.homeName} vs ${currentMatch.awayName}. Skipping publish.`);
+              continue;
+            }
+            ev.player = matchedPlayer;
+          }
+        }
+
         // PRE-CHECK 1: Check if Facebook post already exists for this exact event
         const existingPostId =
           canonicalEvents[ev.eventId]?.facebookPostId ||
@@ -468,8 +488,16 @@ class MonitoringManager {
         if (!edit.postId) continue;
 
         // User explicit rule: Stop editing goal posts created even if assists name is resolved
+        // EXCEPTION: Update goal if the event that came in after goal is goal disallowed!
         const isGoalType = edit.event?.type === 'GOAL' || edit.event?.type === 'OWN_GOAL' || edit.event?.type === 'PENALTY_SCORED';
-        if (isGoalType && !edit.isDisallowed) {
+        const isDisallowedEdit = Boolean(
+          edit.isDisallowed ||
+          edit.event?.isDisallowed ||
+          edit.event?.status === 'DISALLOWED' ||
+          edit.type === 'GOAL_DISALLOWED' ||
+          edit.event?.type === 'GOAL_DISALLOWED'
+        );
+        if (isGoalType && !isDisallowedEdit) {
           logger.info(`[GOAL EDIT DISABLED] Post ${edit.postId} for goal ${edit.eventId} will not be updated on Facebook (assists/details resolved). Goal posts are immutable.`);
           continue;
         }
@@ -480,24 +508,24 @@ class MonitoringManager {
         }
 
         // Disallowed goal edits MUST apply immediately to edit the existing goal post without 2-5 min waiting delay
-        if (postRecord && !edit.isDisallowed && !isUpdateAllowed(postRecord)) {
+        if (postRecord && !isDisallowedEdit && !isUpdateAllowed(postRecord)) {
           queuePendingUpdate(postRecord, edit);
           continue;
         }
 
         const updatedMsg = formatEventPost(edit.event, currentMatch);
-        logger.info(`Updating Facebook post ${edit.postId} (${edit.eventId}) with newly resolved details (isDisallowed=${Boolean(edit.isDisallowed)})...`);
+        logger.info(`Updating Facebook post ${edit.postId} (${edit.eventId}) with newly resolved details (isDisallowed=${isDisallowedEdit})...`);
         const success = await this.facebook.updatePagePost(edit.postId, updatedMsg);
 
         if (success && edit.eventId && canonicalEvents[edit.eventId]) {
           canonicalEvents[edit.eventId].lastContentSignature = edit.newContentSig;
-          if (edit.isDisallowed) {
+          if (isDisallowedEdit) {
             canonicalEvents[edit.eventId].status = 'DISALLOWED';
             canonicalEvents[edit.eventId].isDisallowed = true;
           }
           if (postRecord) {
             delete postRecord.pendingUpdate;
-            if (edit.isDisallowed) {
+            if (isDisallowedEdit) {
               postRecord.status = 'DISALLOWED';
             }
           }
@@ -511,7 +539,14 @@ class MonitoringManager {
 
         const pending = postRecord.pendingUpdate;
         const isGoalType = pending.event?.type === 'GOAL' || pending.event?.type === 'OWN_GOAL' || pending.event?.type === 'PENALTY_SCORED';
-        if (isGoalType && !pending.isDisallowed) {
+        const isDisallowedPending = Boolean(
+          pending.isDisallowed ||
+          pending.event?.isDisallowed ||
+          pending.event?.status === 'DISALLOWED' ||
+          pending.type === 'GOAL_DISALLOWED' ||
+          pending.event?.type === 'GOAL_DISALLOWED'
+        );
+        if (isGoalType && !isDisallowedPending) {
           logger.info(`[GOAL EDIT DISABLED] Dropping pending edit for goal post ${postRecord.postId}.`);
           delete postRecord.pendingUpdate;
           continue;

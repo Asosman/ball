@@ -637,13 +637,24 @@ export async function getMatchLineups(fixtureId, leagueSlug = 'eng.1', preloaded
         .filter(Boolean);
     };
 
+    const extractAllNames = (rosterObj) => {
+      const athletes = rosterObj?.roster || [];
+      return athletes
+        .map((a) => a.athlete?.displayName || a.athlete?.fullName || a.athlete?.name || '')
+        .filter(Boolean);
+    };
+
     const homeNames = extractNames(homeRoster);
     const awayNames = extractNames(awayRoster);
+    const allHomeNames = extractAllNames(homeRoster);
+    const allAwayNames = extractAllNames(awayRoster);
 
     if (homeNames.length >= 7 && awayNames.length >= 7) {
       return {
         home: homeNames,
         away: awayNames,
+        allHome: allHomeNames.length > 0 ? allHomeNames : homeNames,
+        allAway: allAwayNames.length > 0 ? allAwayNames : awayNames,
         startersHome: homeRoster?.roster?.filter((a) => a.starter) || [],
         startersAway: awayRoster?.roster?.filter((a) => a.starter) || [],
         hasLineups: true,
@@ -1007,7 +1018,11 @@ function _normalizeEvent(item, matchContext = {}) {
     /\bstraight\s+red\s+card\b/i.test(text) ||
     /\bsees\s+red\b/i.test(text);
 
-  if (!isExcludedYellow && !isNegatedOrNonDismissal && (officialRed || textAffirmative)) {
+  const isStaffDismissal =
+    /\b(?:manager|coach|head\s+coach|assistant\s+coach|bench\s+staff|physio|trainer|referee)\b/i.test(text) ||
+    /\b(?:manager|coach|referee)\b/i.test(primaryAthlete || '');
+
+  if (!isStaffDismissal && !isExcludedYellow && !isNegatedOrNonDismissal && (officialRed || textAffirmative)) {
     const isSecondYellow =
       typeText.includes('second yellow') ||
       typeText.includes('2nd yellow') ||
@@ -1286,6 +1301,9 @@ export async function fetchMatchDetails(fixtureId, leagueSlug = 'eng.1', existin
   normalized.lineups = {
     home: lineupsResult.home,
     away: lineupsResult.away,
+    allHome: lineupsResult.allHome || lineupsResult.home,
+    allAway: lineupsResult.allAway || lineupsResult.away,
+    allPlayers: [...(lineupsResult.allHome || lineupsResult.home), ...(lineupsResult.allAway || lineupsResult.away)],
   };
   normalized.lineupsAvailable = lineupsResult.hasLineups;
 

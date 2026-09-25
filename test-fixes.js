@@ -371,7 +371,7 @@ console.log('Half-Time Post Output:\n' + htPost + '\n');
 assert(htPost.includes('HT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 1 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚') || htPost.includes('HT Arsenal 1 - 0 Chelsea'), 'HT must have HT team A scoreline Team B');
 assert(!htPost.includes('⏱️ Time:'), 'Half-time post must NOT show Time: line');
 assert(!htPost.includes('Score:'), 'Half-time post must NOT show Score:');
-assert(htPost.includes('📝 '), 'Half-time post must include Info line without Info: label');
+assert(!htPost.includes('📝'), 'Half-time post must NOT include Info line per user instruction');
 
 const ftEvent = {
   type: 'FULL_TIME',
@@ -386,8 +386,18 @@ console.log('Full-Time Post Output:\n' + ftPost + '\n');
 assert(ftPost.includes('FT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚') || ftPost.includes('FT Arsenal 2 - 1 Chelsea'), 'FT must have FT team A scoreline Team B');
 assert(!ftPost.includes('⏱️ Time:'), 'Full-time post must NOT show Time: line');
 assert(!ftPost.includes('Score:'), 'Full-time post must NOT show Score:');
-assert(ftPost.includes('📝 '), 'Full-time post must include Info line without Info: label');
-console.log('✅ PASS: HT and FT posts conform strictly to requested template without forbidden labels.\n');
+assert(!ftPost.includes('📝'), 'Full-time post must NOT include Info line per user instruction');
+
+const kickoffEvent = {
+  type: 'KICKOFF',
+  minute: 0,
+  period: 1,
+  homeScore: 0,
+  awayScore: 0,
+};
+const kickoffPost = formatEventPost(kickoffEvent, matchContext);
+assert(!kickoffPost.includes('📝'), 'Kick-off post must NOT include Info line per user instruction');
+console.log('✅ PASS: Info line removed from kickoff, halftime and fulltime posts.\n');
 
 // ---------------------------------------------------------------------------
 // TEST 8: Starting XI Format & 4-5 Hashtags Check
@@ -538,6 +548,39 @@ assert.strictEqual(duplicateDiff.newEvents.length, 0, 'Must NEVER create a dupli
 assert.strictEqual(duplicateDiff.goalPostEdits.length, 0, 'Must NEVER queue edits for duplicate representation');
 console.log('✅ Requirement 2 Verified: Duplicate post creation completely prevented.\n');
 
+// Scenario C: Exception: update goal if the event that came in after goal is GOAL DISALLOWED
+console.log('- Scenario C: Disallowed goal event arrives after goal was posted:');
+const polledWithDisallowedGoal = {
+  fixtureId: goalFixtureId,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueName: 'Premier League',
+  status: { state: 'in', description: 'In Progress', clock: "32'", period: 1 },
+  score: { home: 0, away: 0 },
+  events: [
+    {
+      type: 'GOAL_DISALLOWED',
+      minute: 24,
+      period: 1,
+      player: 'Bukayo Saka',
+      teamId: 'arsenal',
+      reason: 'Goal disallowed for offside following VAR review',
+      text: 'VAR Decision: No Goal Arsenal.',
+      disallowed: true,
+    },
+  ],
+};
+
+const postDisallowDiff = compareMatchState(matchWithPostedGoal, polledWithDisallowedGoal);
+console.log(`- New events queued on disallow: ${postDisallowDiff.newEvents.length}`);
+console.log(`- Goal post edits queued on disallow: ${postDisallowDiff.goalPostEdits.length}`);
+console.log(`- Event post edits queued on disallow: ${postDisallowDiff.eventPostEdits.length}`);
+
+assert.strictEqual(postDisallowDiff.newEvents.length, 0, 'Must NEVER create a new post for a disallowed goal');
+assert.strictEqual(postDisallowDiff.goalPostEdits.length, 1, 'MUST queue goal post edit when goal is disallowed');
+assert.strictEqual(postDisallowDiff.goalPostEdits[0].isDisallowed, true, 'Queued edit must be flagged isDisallowed');
+console.log('✅ Requirement 3 Verified: Disallowed goal makes exception to update existing goal post on Facebook.\n');
+
 // ---------------------------------------------------------------------------
 // TEST 11: Goal Delay For Scorer and Assist Name Resolution Before Posting
 // ---------------------------------------------------------------------------
@@ -593,6 +636,87 @@ assert.strictEqual(config.monitoring.goalResolutionDelayMs, 10000, 'Config goalR
 console.log(`- Configured goal resolution delay: ${config.monitoring.goalResolutionDelayMs / 1000} seconds`);
 console.log('✅ PASS: Goal resolution delay and posts with/without resolved names verified.\n');
 
+// ---------------------------------------------------------------------------
+// TEST 12: Red Card Lineup Verification (Rejects Non-Lineup Personnel)
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 12] Red Card Lineup Validation:');
+const matchWithLineups = {
+  fixtureId: 'match-rc-lineup-test-101',
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueName: 'Premier League',
+  status: { state: 'in', description: 'In Progress', clock: "55'", period: 2 },
+  score: { home: 1, away: 0 },
+  lineups: {
+    home: ['David Raya', 'William Saliba', 'Gabriel', 'Declan Rice', 'Martin Odegaard', 'Bukayo Saka', 'Kai Havertz'],
+    away: ['Robert Sanchez', 'Levi Colwill', 'Marc Cucurella', 'Moises Caicedo', 'Enzo Fernandez', 'Cole Palmer', 'Nicolas Jackson'],
+  },
+  events: {},
+  facebookPosts: {},
+};
+
+// Case 1: Red card reported for manager or coach not in lineup (e.g. Mikel Arteta)
+const polledWithManagerRedCard = {
+  ...matchWithLineups,
+  events: [
+    {
+      type: 'RED_CARD',
+      minute: 55,
+      period: 2,
+      player: 'Mikel Arteta', // Manager - NOT in lineup!
+      teamId: 'arsenal',
+      text: 'Mikel Arteta is shown a red card.',
+    },
+  ],
+};
+const managerRcDiff = compareMatchState(matchWithLineups, polledWithManagerRedCard);
+console.log(`- New events queued for non-lineup person (manager): ${managerRcDiff.newEvents.length}`);
+assert.strictEqual(managerRcDiff.newEvents.length, 0, 'Must REJECT red card for person not in the match lineup');
+console.log('✅ Sub-test A Passed: Person not in lineup rejected from getting a red card.');
+
+// Case 2: Red card reported for valid player in lineup (e.g. William Saliba)
+const polledWithPlayerRedCard = {
+  ...matchWithLineups,
+  events: [
+    {
+      type: 'RED_CARD',
+      minute: 58,
+      period: 2,
+      player: 'William Saliba', // Player IN lineup!
+      teamId: 'arsenal',
+      text: 'William Saliba is shown a straight red card.',
+    },
+  ],
+};
+const playerRcDiff = compareMatchState(matchWithLineups, polledWithPlayerRedCard);
+console.log(`- New events queued for valid lineup player: ${playerRcDiff.newEvents.length}`);
+assert.strictEqual(playerRcDiff.newEvents.length, 1, 'MUST accept red card for valid player in the lineup');
+assert.strictEqual(playerRcDiff.newEvents[0].player, 'William Saliba', 'Red card must be assigned to the lineup player');
+console.log('✅ Sub-test B Passed: Valid lineup player correctly receives red card event.\n');
+
+// ---------------------------------------------------------------------------
+// TEST 13: Enhanced Verse Variations on Match Events
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 13] Match Event Verse Variations:');
+const earlyGoalVerse = generateDynamicFallbackInfo({ type: 'GOAL', minute: 4, player: 'Saka' }, { score: { home: 1, away: 0 } });
+const lateGoalVerse = generateDynamicFallbackInfo({ type: 'GOAL', minute: 89, player: 'Havertz' }, { score: { home: 2, away: 1 } });
+const equalizerVerse = generateDynamicFallbackInfo({ type: 'GOAL', minute: 65, player: 'Palmer', scoreAfterEvent: { home: 1, away: 1 } }, { score: { home: 1, away: 1 } });
+const redCardVerse = generateDynamicFallbackInfo({ type: 'RED_CARD', minute: 58, player: 'Saliba' }, matchWithLineups);
+const disallowedVerse = generateDynamicFallbackInfo({ type: 'GOAL_DISALLOWED', minute: 24, player: 'Saka' }, matchWithLineups);
+
+console.log(`- Early Goal Verse: "${earlyGoalVerse}"`);
+console.log(`- Late Goal Verse: "${lateGoalVerse}"`);
+console.log(`- Equalizer Verse: "${equalizerVerse}"`);
+console.log(`- Red Card Verse: "${redCardVerse}"`);
+console.log(`- Disallowed Goal Verse: "${disallowedVerse}"`);
+
+assert(earlyGoalVerse.length > 5, 'Early goal verse must not be empty');
+assert(lateGoalVerse.length > 5, 'Late goal verse must not be empty');
+assert(equalizerVerse.length > 5, 'Equalizer verse must not be empty');
+assert(redCardVerse.length > 5, 'Red card verse must not be empty');
+assert(disallowedVerse.length > 5, 'Disallowed goal verse must not be empty');
+console.log('✅ PASS: Rich verse variations generated dynamically for distinct match moments.\n');
+
 console.log('====================================================');
-console.log('  🎉 ALL 11 TESTS PASSED! ALL FIXES VERIFIED.');
+console.log('  🎉 ALL 13 TESTS PASSED! ALL FIXES VERIFIED.');
 console.log('====================================================\n');
