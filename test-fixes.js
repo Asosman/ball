@@ -390,7 +390,8 @@ assert(ftPost.includes('FT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥�
 assert(!ftPost.includes('⏱️ Time:'), 'Full-time post must NOT show Time: line');
 assert(!ftPost.includes('Score:'), 'Full-time post must NOT show Score:');
 assert(!ftPost.includes('📝'), 'Full-time post must NOT include Info line per user instruction');
-assert(ftPost.includes('⚡') && (ftPost.includes('𝐅𝐔𝐋𝐋-𝐓𝐈𝐌𝐄') || ftPost.includes('FULL-TIME')), 'Full-time results post MUST retain heading');
+assert(!ftPost.includes('⚡'), 'Full-time post must NOT have a heading per user instruction');
+assert(!ftPost.includes('𝐅𝐔𝐋𝐋-𝐓𝐈𝐌𝐄') && !ftPost.includes('FULL-TIME'), 'Full-time post must NOT contain FULL-TIME heading');
 assert(!ftPost.includes('━━━━━━━━━━━━━━━━━━━'), 'Full-time post must NOT contain wrapping separator lines');
 
 const kickoffEvent = {
@@ -404,7 +405,7 @@ const kickoffPost = formatEventPost(kickoffEvent, matchContext);
 assert(!kickoffPost.includes('📝'), 'Kick-off post must NOT include Info line per user instruction');
 assert(!kickoffPost.includes('⚡'), 'Kick-off post must NOT have a heading per user instruction');
 assert(!kickoffPost.includes('━━━━━━━━━━━━━━━━━━━'), 'Kick-off post must NOT contain wrapping separator lines');
-console.log('✅ PASS: Headings removed from kickoff/halftime, retained on full-time results, info and wrapper lines removed.\n');
+console.log('✅ PASS: Headings removed from kickoff, halftime, and full-time events; retained on goal, disallowed, red card, fixtures/results; info and wrapper lines removed.\n');
 
 // ---------------------------------------------------------------------------
 // TEST 8: Starting XI Format & 4-5 Hashtags Check

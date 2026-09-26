@@ -432,11 +432,12 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
 
   // User rule: Remove the headings from every event except
   // Goal events, Goals disallowed events, Red card events, daily fixtures and results
+  // Full-time events do not have headings per user instruction
   const isGoal = (type === 'GOAL' || type === 'OWN_GOAL' || type === 'PENALTY_SCORED');
   const isDisallowed = (type === 'GOAL_DISALLOWED' || event.status === 'DISALLOWED' || event.isDisallowed);
   const isRedCard = (type === 'RED_CARD');
   const isResult = (type === 'FULL_TIME' || type === 'FULLTIME' || type === 'FULL_TIME_PENDING_ET' || type === 'FT' || type === 'AFTER_EXTRA_TIME_OR_SHOOTOUT' || type === 'FULL_TIME_POST_ET');
-  const hasHeading = isGoal || isDisallowed || isRedCard || isResult;
+  const hasHeading = isGoal || isDisallowed || isRedCard;
 
   const isHalfTime = (type === 'HALF_TIME' || type === 'HALFTIME' || type === 'HT');
 
