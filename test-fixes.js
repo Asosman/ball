@@ -325,26 +325,27 @@ assert(!goalPostFormatted.includes('Scorer:'), 'Scorer: must NOT appear');
 assert(!goalPostFormatted.includes('Assist:'), 'Assist: must NOT appear');
 assert(!goalPostFormatted.includes('Info:'), 'Info: must NOT appear');
 
-// Verify structure order: Heading -> Time (⏱️ 24') -> Scoreboard -> Details -> Info
+// Verify structure order: Heading -> Time (⏱️ 24') -> Scoreboard -> Details
 const headingIndex = goalPostFormatted.indexOf(makeUnicodeBold('GOOOOALLLLL'));
 const timeIndex = goalPostFormatted.indexOf("⏱️ 24'");
 const scoreIndex = goalPostFormatted.indexOf('1 - 0');
 const scorerIndex = goalPostFormatted.indexOf(makeUnicodeBold('Bukayo Saka'));
 const assistIndex = goalPostFormatted.indexOf('Martin Odegaard');
-const infoIndex = goalPostFormatted.indexOf('📝 ');
 
-assert(headingIndex !== -1, 'Heading must exist');
+assert(headingIndex !== -1, 'Heading must exist for goal event');
 assert(timeIndex !== -1, 'Time must exist');
 assert(scoreIndex !== -1, 'Scoreboard must exist');
 assert(scorerIndex !== -1, 'Scorer must exist');
 assert(assistIndex !== -1, 'Assist must exist');
-assert(infoIndex !== -1, 'Info must exist');
 
 assert(headingIndex < timeIndex, 'Heading must appear before Time');
 assert(timeIndex < scoreIndex, 'Time must appear before Scoreboard');
 assert(scoreIndex < scorerIndex, 'Scoreboard must appear before Details (Scorer)');
 assert(scorerIndex < assistIndex, 'Scorer must appear before Assist');
-assert(assistIndex < infoIndex, 'Details must appear before Info');
+
+// Verify info line and wrapping lines are removed
+assert(!goalPostFormatted.includes('📝'), 'Goal post must NOT contain info line');
+assert(!goalPostFormatted.includes('━━━━━━━━━━━━━━━━━━━'), 'Goal post must NOT contain wrapping separator lines');
 
 // Verify Hashtags count is 4 to 5
 const lastLine = goalPostFormatted.trim().split('\n').pop() || '';
@@ -352,7 +353,7 @@ const hashtagMatches = lastLine.match(/#\w+/g) || [];
 console.log(`Hashtags count in post: ${hashtagMatches.length} (${hashtagMatches.join(' ')})`);
 assert(hashtagMatches.length >= 4 && hashtagMatches.length <= 5, 'Post must contain strictly 4 to 5 hashtags');
 
-console.log('✅ PASS: Event post order is strictly: Heading -> Time -> Scoreboard -> Details -> Dynamic Info with 4-5 hashtags.\n');
+console.log('✅ PASS: Event post order is strictly: Heading -> Time -> Scoreboard -> Details with 4-5 hashtags and no wrapper/info lines.\n');
 
 // ---------------------------------------------------------------------------
 // TEST 7: Half-Time & Full-Time Post Structure
@@ -372,6 +373,8 @@ assert(htPost.includes('HT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 1 - 0 𝐂𝐡𝐞𝐥�
 assert(!htPost.includes('⏱️ Time:'), 'Half-time post must NOT show Time: line');
 assert(!htPost.includes('Score:'), 'Half-time post must NOT show Score:');
 assert(!htPost.includes('📝'), 'Half-time post must NOT include Info line per user instruction');
+assert(!htPost.includes('⚡'), 'Half-time post must NOT have a heading per user instruction');
+assert(!htPost.includes('━━━━━━━━━━━━━━━━━━━'), 'Half-time post must NOT contain wrapping separator lines');
 
 const ftEvent = {
   type: 'FULL_TIME',
@@ -387,6 +390,8 @@ assert(ftPost.includes('FT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥�
 assert(!ftPost.includes('⏱️ Time:'), 'Full-time post must NOT show Time: line');
 assert(!ftPost.includes('Score:'), 'Full-time post must NOT show Score:');
 assert(!ftPost.includes('📝'), 'Full-time post must NOT include Info line per user instruction');
+assert(ftPost.includes('⚡') && (ftPost.includes('𝐅𝐔𝐋𝐋-𝐓𝐈𝐌𝐄') || ftPost.includes('FULL-TIME')), 'Full-time results post MUST retain heading');
+assert(!ftPost.includes('━━━━━━━━━━━━━━━━━━━'), 'Full-time post must NOT contain wrapping separator lines');
 
 const kickoffEvent = {
   type: 'KICKOFF',
@@ -397,7 +402,9 @@ const kickoffEvent = {
 };
 const kickoffPost = formatEventPost(kickoffEvent, matchContext);
 assert(!kickoffPost.includes('📝'), 'Kick-off post must NOT include Info line per user instruction');
-console.log('✅ PASS: Info line removed from kickoff, halftime and fulltime posts.\n');
+assert(!kickoffPost.includes('⚡'), 'Kick-off post must NOT have a heading per user instruction');
+assert(!kickoffPost.includes('━━━━━━━━━━━━━━━━━━━'), 'Kick-off post must NOT contain wrapping separator lines');
+console.log('✅ PASS: Headings removed from kickoff/halftime, retained on full-time results, info and wrapper lines removed.\n');
 
 // ---------------------------------------------------------------------------
 // TEST 8: Starting XI Format & 4-5 Hashtags Check

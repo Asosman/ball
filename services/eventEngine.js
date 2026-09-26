@@ -430,55 +430,39 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
   const customHashtags = buildMatchHashtags(currentMatch.homeName, currentMatch.awayName, currentMatch.leagueName);
   const boldHeader = makeUnicodeBold(eventHeader);
 
+  // User rule: Remove the headings from every event except
+  // Goal events, Goals disallowed events, Red card events, daily fixtures and results
+  const isGoal = (type === 'GOAL' || type === 'OWN_GOAL' || type === 'PENALTY_SCORED');
+  const isDisallowed = (type === 'GOAL_DISALLOWED' || event.status === 'DISALLOWED' || event.isDisallowed);
+  const isRedCard = (type === 'RED_CARD');
+  const isResult = (type === 'FULL_TIME' || type === 'FULLTIME' || type === 'FULL_TIME_PENDING_ET' || type === 'FT' || type === 'AFTER_EXTRA_TIME_OR_SHOOTOUT' || type === 'FULL_TIME_POST_ET');
+  const hasHeading = isGoal || isDisallowed || isRedCard || isResult;
+
   const isHalfTime = (type === 'HALF_TIME' || type === 'HALFTIME' || type === 'HT');
-  const isFullTime = (type === 'FULL_TIME' || type === 'FULLTIME' || type === 'FULL_TIME_PENDING_ET' || type === 'FT' || type === 'AFTER_EXTRA_TIME_OR_SHOOTOUT' || type === 'FULL_TIME_POST_ET');
+
+  const sections = [];
+
+  if (hasHeading) {
+    sections.push(`⚡ ${boldHeader} ⚡`);
+  }
 
   if (isHalfTime) {
-    const sections = [
-      `⚡ ${boldHeader} ⚡`,
-      `━━━━━━━━━━━━━━━━━━━`,
-      `HT ${home} ${homeScore} - ${awayScore} ${away}`,
-    ];
-    if (detailLines.length > 0) {
-      sections.push(detailLines.join('\n'));
-    }
-    // Info removed from half-time per user instruction
-    sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
-    return sections.join('\n');
+    sections.push(`HT ${home} ${homeScore} - ${awayScore} ${away}`);
+  } else if (isResult) {
+    sections.push(`FT ${home} ${homeScore} - ${awayScore} ${away}`);
+  } else {
+    sections.push(`⏱️ ${clock}`);
+    sections.push(`${home} ${homeScore} - ${awayScore} ${away}`);
   }
-
-  if (isFullTime) {
-    const sections = [
-      `⚡ ${boldHeader} ⚡`,
-      `━━━━━━━━━━━━━━━━━━━`,
-      `FT ${home} ${homeScore} - ${awayScore} ${away}`,
-    ];
-    if (detailLines.length > 0) {
-      sections.push(detailLines.join('\n'));
-    }
-    // Info removed from full-time per user instruction
-    sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
-    return sections.join('\n');
-  }
-
-  const sections = [
-    `⚡ ${boldHeader} ⚡`,
-    `━━━━━━━━━━━━━━━━━━━`,
-    `⏱️ ${clock}`,
-    `${home} ${homeScore} - ${awayScore} ${away}`,
-  ];
 
   if (detailLines.length > 0) {
     sections.push(detailLines.join('\n'));
   }
 
-  const isKickoff = (type === 'KICKOFF');
-  // Info removed from kick-off per user instruction; retained for other match events
-  if (!isKickoff && eventLine) {
-    sections.push(`📝 ${eventLine}`);
-  }
+  // Info lines removed from every post per user instruction
+  // Two wrapping lines (━━━━━━━━━━━━━━━━━━━) removed from main post per user instruction
 
-  sections.push(`━━━━━━━━━━━━━━━━━━━\n📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
+  sections.push(`📱 Stay tuned for more updates! 👇\n\n${customHashtags}`);
 
   return sections.join('\n');
 }
@@ -708,7 +692,6 @@ export function formatFixturesPost(matches, dateDisplay, options = {}) {
   
   const lines = [
     `⚡ ${titleEmoji} ⚡`,
-    `━━━━━━━━━━━━━━━━━━━`,
     `📅 Date: ${dateDisplay}`,
     `📢 ${subtitleEmoji}`,
     `🕐 All times are in West Africa Time (WAT)`,
@@ -733,7 +716,7 @@ export function formatFixturesPost(matches, dateDisplay, options = {}) {
     ? '💬 What do you think about the scorelines? 👇'
     : '💬 Drop your predictions and thoughts below! 👇';
 
-  lines.push(`━━━━━━━━━━━━━━━━━━━`);
+  lines.push('');
   lines.push(callToAction);
   lines.push(standardHashtags);
 
