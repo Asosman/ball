@@ -395,12 +395,22 @@ class MonitoringManager {
           try {
             const refreshedMatch = await fetchMatchDetails(fixtureId, leagueSlug, prevRecord);
             if (refreshedMatch?.events?.length > 0) {
-              const resolvedGoal = refreshedMatch.events.find((re) =>
-                (re.type === ev.type || (ev.type === 'GOAL' && (re.type === 'OWN_GOAL' || re.type === 'PENALTY_SCORED')) || re.type === 'GOAL_DISALLOWED') &&
-                ((re.id && ev.rawId && String(re.id) === String(ev.rawId)) ||
-                 (re.scoreAfterEvent && ev.scoreAfterEvent && re.scoreAfterEvent.home === ev.scoreAfterEvent.home && re.scoreAfterEvent.away === ev.scoreAfterEvent.away) ||
-                 (Math.abs((re.minute || 0) - (ev.minute || 0)) <= 2 && (!re.teamId || !ev.teamId || String(re.teamId) === String(ev.teamId))))
-              );
+              const resolvedGoal = refreshedMatch.events.find((re) => {
+                const isDisallowType = re.type === 'GOAL_DISALLOWED' || re.status === 'DISALLOWED' || re.isDisallowed;
+                const isTargetGoalType = re.type === ev.type || (ev.type === 'GOAL' && (re.type === 'OWN_GOAL' || re.type === 'PENALTY_SCORED')) || isDisallowType;
+                if (!isTargetGoalType) return false;
+
+                // If it's a disallowed event, it must share rawId or be within 2 minutes of this exact goal
+                if (isDisallowType) {
+                  const idMatch = re.id && ev.rawId && String(re.id) === String(ev.rawId);
+                  const timeMatch = Math.abs((re.minute || 0) - (ev.minute || 0)) <= 2 && (!re.teamId || !ev.teamId || String(re.teamId) === String(ev.teamId));
+                  return idMatch || timeMatch;
+                }
+
+                return (re.id && ev.rawId && String(re.id) === String(ev.rawId)) ||
+                  (re.scoreAfterEvent && ev.scoreAfterEvent && re.scoreAfterEvent.home === ev.scoreAfterEvent.home && re.scoreAfterEvent.away === ev.scoreAfterEvent.away) ||
+                  (Math.abs((re.minute || 0) - (ev.minute || 0)) <= 2 && (!re.teamId || !ev.teamId || String(re.teamId) === String(ev.teamId)));
+              });
 
               if (resolvedGoal) {
                 // If disallowed during delay, do not publish

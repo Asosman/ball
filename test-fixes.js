@@ -725,6 +725,90 @@ assert(redCardVerse.length > 5, 'Red card verse must not be empty');
 assert(disallowedVerse.length > 5, 'Disallowed goal verse must not be empty');
 console.log('✅ PASS: Rich verse variations generated dynamically for distinct match moments.\n');
 
+// ---------------------------------------------------------------------------
+// TEST 14: Disallowed Goal followed by Valid Goal
+// Scenario: A goal is disallowed earlier (does not add to scoreboard).
+// Another goal is later scored (a good goal, counts 1-0).
+// The heading of the good goal must NOT be "disallowed goal", but "GOOOOALLLLL!".
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 14] Disallowed Goal Followed By Good Goal Heading & State Check:');
+const test14FixtureId = 'fixture-disallow-then-goal-123';
+const initialMatch14 = {
+  fixtureId: test14FixtureId,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  status: { state: 'in', description: 'First Half', clock: "35'", period: 1 },
+  score: { home: 1, away: 0 },
+  events: [
+    {
+      type: 'VAR',
+      minute: 14,
+      period: 1,
+      text: 'Goal disallowed for offside following VAR review. No goal.',
+      player: 'Gabriel Jesus',
+      teamId: 'arsenal',
+    },
+    {
+      type: 'GOAL',
+      minute: 35,
+      period: 1,
+      player: 'Bukayo Saka',
+      teamId: 'arsenal',
+      scoreAfterEvent: { home: 1, away: 0 },
+      text: 'Goal! Arsenal 1, Chelsea 0. Bukayo Saka left footed shot.',
+    },
+  ],
+};
+
+const diff14 = compareMatchState({ fixtureId: test14FixtureId, score: { home: 0, away: 0 }, events: {} }, initialMatch14);
+const goalEvents14 = diff14.newEvents.filter((e) => e.type === 'GOAL');
+assert.strictEqual(goalEvents14.length, 1, 'Must emit exactly 1 new goal event for the good goal');
+const goodGoal = goalEvents14[0];
+assert.strictEqual(goodGoal.player, 'Bukayo Saka', 'Good goal must be by Bukayo Saka');
+assert.strictEqual(goodGoal.status, 'PENDING', 'Good goal must be PENDING, not DISALLOWED');
+assert(!goodGoal.isDisallowed, 'Good goal must NOT have isDisallowed flag set');
+
+// Format the post for the good goal
+const goodGoalPost = formatEventPost(goodGoal, initialMatch14);
+console.log('\nGenerated Good Goal Post Output:\n');
+console.log(goodGoalPost);
+console.log('----------------------------------------------------');
+
+assert(goodGoalPost.includes(makeUnicodeBold('GOOOOALLLLL!')), 'Good goal MUST have GOOOOALLLLL! heading');
+assert(!goodGoalPost.includes('DISALLOWED'), 'Good goal heading must NEVER be DISALLOWED');
+assert(goodGoalPost.includes('1 - 0'), 'Good goal scoreboard must show 1 - 0');
+
+// Now simulate the NEXT polling cycle where the good goal has been published and has a facebookPostId
+const matchStateAfterPost14 = {
+  fixtureId: test14FixtureId,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  status: { state: 'in', description: 'First Half', clock: "40'", period: 1 },
+  score: { home: 1, away: 0 },
+  events: {
+    ...diff14.events,
+    [goodGoal.eventId]: {
+      ...goodGoal,
+      status: 'VALID',
+      facebookPostId: 'fb-post-saka-35',
+    },
+  },
+  facebookPosts: {
+    'fb-post-saka-35': {
+      postId: 'fb-post-saka-35',
+      eventId: goodGoal.eventId,
+      type: 'GOAL',
+    },
+  },
+};
+
+const poll2Diff14 = compareMatchState(matchStateAfterPost14, initialMatch14);
+assert.strictEqual(poll2Diff14.newEvents.length, 0, 'No new events on poll 2');
+assert.strictEqual(poll2Diff14.goalPostEdits.length, 0, 'No goal post edits should be queued targeting the good goal');
+assert.strictEqual(poll2Diff14.eventPostEdits.length, 0, 'No event post edits should be queued targeting the good goal');
+assert.strictEqual(poll2Diff14.events[goodGoal.eventId].status, 'VALID', 'Good goal must stay VALID, not flipped to DISALLOWED');
+console.log('✅ PASS: Good goal retains GOOOOALLLLL heading and is never marked or edited as disallowed.\n');
+
 console.log('====================================================');
-console.log('  🎉 ALL 13 TESTS PASSED! ALL FIXES VERIFIED.');
+console.log('  🎉 ALL 14 TESTS PASSED! ALL FIXES VERIFIED.');
 console.log('====================================================\n');

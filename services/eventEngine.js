@@ -1085,7 +1085,8 @@ export function compareMatchState(prevRecord, currentMatch) {
     // Handle VAR events: only allowed if directly resulting in a disallowed goal
     if (ev.type === 'VAR') {
       const text = (ev.text || ev.description || '').toLowerCase();
-      if (text.includes('disallowed') || text.includes('no goal') || text.includes('overturned')) {
+      const isAwarded = text.includes('goal awarded') || text.includes('goal stands') || text.includes('overturned - goal') || text.includes('overturned: goal') || text.includes('decision overturned, goal');
+      if (!isAwarded && (text.includes('disallowed') || text.includes('no goal') || text.includes('overturned'))) {
         ev.type = 'GOAL_DISALLOWED';
         ev.reason = ev.text || ev.description;
       } else {
@@ -1095,8 +1096,12 @@ export function compareMatchState(prevRecord, currentMatch) {
 
     // Disallowed goal normalization: if a goal has disallowed/status DISALLOWED, treat as GOAL_DISALLOWED
     if (ev.type === 'GOAL' && (ev.disallowed === true || ev.isDisallowed === true || ev.status === 'DISALLOWED')) {
-      ev.type = 'GOAL_DISALLOWED';
-      ev.reason = ev.reason || ev.text || ev.description || 'Goal disallowed by referee / VAR review';
+      const text = (ev.text || ev.description || '').toLowerCase();
+      const isAwarded = text.includes('goal awarded') || text.includes('goal stands') || text.includes('overturned - goal') || text.includes('overturned: goal') || text.includes('decision overturned, goal');
+      if (!isAwarded) {
+        ev.type = 'GOAL_DISALLOWED';
+        ev.reason = ev.reason || ev.text || ev.description || 'Goal disallowed by referee / VAR review';
+      }
     }
 
     // Handle Penalty events: only PENALTY_SCORED is allowed (and penalties have NO assists)
@@ -1197,7 +1202,7 @@ export function compareMatchState(prevRecord, currentMatch) {
         );
       }
 
-      // 2. Match by player name on an active goal
+      // 2. Match by player name on an active goal within time window (max 4 mins)
       if (!goalToDisallow && ev.player) {
         const pNorm = String(ev.player).toLowerCase().trim();
         goalToDisallow = Object.values(canonicalEvents).find(
@@ -1206,46 +1211,56 @@ export function compareMatchState(prevRecord, currentMatch) {
                  e.player &&
                  (String(e.player).toLowerCase().trim() === pNorm ||
                   String(e.player).toLowerCase().includes(pNorm) ||
-                  pNorm.includes(String(e.player).toLowerCase().trim()))
+                  pNorm.includes(String(e.player).toLowerCase().trim())) &&
+                 Math.abs((e.minute || 0) - (ev.minute || 0)) <= 4
         );
       }
 
-      // 3. Match by commentary text mentioning an active goal's player
+      // 3. Match by commentary text mentioning an active goal's player within time window (max 4 mins)
       if (!goalToDisallow && (ev.reason || ev.text || ev.description)) {
         const fullText = (ev.reason || ev.text || ev.description).toLowerCase();
         goalToDisallow = Object.values(canonicalEvents).find(
           (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
                  e.status !== 'DISALLOWED' && !e.isDisallowed &&
                  e.player &&
-                 fullText.includes(String(e.player).toLowerCase().trim())
+                 fullText.includes(String(e.player).toLowerCase().trim()) &&
+                 Math.abs((e.minute || 0) - (ev.minute || 0)) <= 4
         );
       }
 
-      // 4. Match by closest active goal in the same period
-      if (!goalToDisallow) {
+      // 4. Match by closest active goal in the same period within narrow VAR window (max 3 mins)
+      // A disallow event can NEVER disallow a goal that was scored AFTER the disallow event!
+      // Nor can it disallow a goal by a different player if a specific player was given.
+      if (!goalToDisallow && !ev.player) {
+        const disallowMinute = ev.minute !== undefined && ev.minute !== null ? ev.minute : 0;
         const activeGoalsInPeriod = Object.values(canonicalEvents).filter(
           (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
                  e.status !== 'DISALLOWED' && !e.isDisallowed &&
-                 (e.period || 1) === (ev.period || 1)
+                 (e.period || 1) === (ev.period || 1) &&
+                 (!ev.teamId || !e.teamId || String(e.teamId) === String(ev.teamId)) &&
+                 (e.minute || 0) <= disallowMinute + 1 &&
+                 disallowMinute - (e.minute || 0) <= 3
         );
         let closest = null;
         let minDiff = Infinity;
         for (const ag of activeGoalsInPeriod) {
-          const diff = Math.abs((ag.minute || 0) - (ev.minute || 0));
+          const diff = Math.abs((ag.minute || 0) - disallowMinute);
           if (diff < minDiff) {
             minDiff = diff;
             closest = ag;
           }
         }
-        if (closest) goalToDisallow = closest;
+        if (closest && minDiff <= 3) goalToDisallow = closest;
       }
 
-      // 5. Fallback: most recent active goal if within 10 minutes of disallow event
-      if (!goalToDisallow) {
+      // 5. Fallback: most recent active goal if within 3 minutes before disallow event and no player mismatch
+      if (!goalToDisallow && !ev.player) {
+        const disallowMinute = ev.minute !== undefined && ev.minute !== null ? ev.minute : 0;
         const activeGoals = Object.values(canonicalEvents).filter(
           (e) => (e.type === 'GOAL' || e.type === 'PENALTY_SCORED' || e.type === 'OWN_GOAL') &&
                  e.status !== 'DISALLOWED' && !e.isDisallowed &&
-                 Math.abs((e.minute || 0) - (ev.minute || 0)) <= 10
+                 (e.minute || 0) <= disallowMinute + 1 &&
+                 disallowMinute - (e.minute || 0) <= 3
         );
         if (activeGoals.length > 0) {
           goalToDisallow = activeGoals[activeGoals.length - 1];
@@ -1341,6 +1356,7 @@ export function compareMatchState(prevRecord, currentMatch) {
         const isGoalType = (t) => t === 'GOAL' || t === 'OWN_GOAL' || t === 'PENALTY_SCORED';
         matchedEvent = Object.values(canonicalEvents).find(
           (e) => (e.type === type || (isGoalType(type) && isGoalType(e.type))) &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed &&
                  e.period === period && e.minute === minute && (!e.teamId || e.teamId === teamId)
         );
       }
@@ -1358,6 +1374,7 @@ export function compareMatchState(prevRecord, currentMatch) {
       if (evScore && (evScore.home > 0 || evScore.away > 0)) {
         matchedEvent = Object.values(canonicalEvents).find(
           (e) => isGoalType(e.type) &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed &&
                  e.scoreAfterEvent &&
                  e.scoreAfterEvent.home === evScore.home &&
                  e.scoreAfterEvent.away === evScore.away
@@ -1369,6 +1386,7 @@ export function compareMatchState(prevRecord, currentMatch) {
         const pNorm = String(ev.player).toLowerCase().trim();
         matchedEvent = Object.values(canonicalEvents).find(
           (e) => isGoalType(e.type) &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed &&
                  e.player &&
                  (String(e.player).toLowerCase().trim() === pNorm ||
                   String(e.player).toLowerCase().includes(pNorm) ||
@@ -1381,6 +1399,7 @@ export function compareMatchState(prevRecord, currentMatch) {
       if (!matchedEvent) {
         matchedEvent = Object.values(canonicalEvents).find(
           (e) => isGoalType(e.type) &&
+                 e.status !== 'DISALLOWED' && !e.isDisallowed &&
                  e.period === period &&
                  Math.abs((e.minute || 0) - minute) <= 1 &&
                  (!e.teamId || !teamId || e.teamId === teamId || teamId === 'team')

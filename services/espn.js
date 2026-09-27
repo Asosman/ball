@@ -827,11 +827,19 @@ function _normalizeEvent(item, matchContext = {}) {
       typeText.includes('own goal') ||
       typeText.includes('own-goal') ||
       typeText.includes('autogol');
+    const isAwardedGoal =
+      lowerText.includes('goal stands') ||
+      lowerText.includes('goal awarded') ||
+      lowerText.includes('decision overturned, goal') ||
+      lowerText.includes('overturned - goal') ||
+      lowerText.includes('overturned: goal') ||
+      lowerText.includes('overturned to goal');
     const isDisallowed =
-      lowerText.includes('disallowed') ||
-      lowerText.includes('overturned') ||
-      lowerText.includes('no goal') ||
-      typeText.includes('disallowed');
+      !isAwardedGoal &&
+      (lowerText.includes('disallowed') ||
+       lowerText.includes('overturned') ||
+       lowerText.includes('no goal') ||
+       typeText.includes('disallowed'));
 
     const isPenaltyKick =
       item.penaltyKick === true ||
@@ -1161,10 +1169,18 @@ function _normalizeEvent(item, matchContext = {}) {
 
   // 5. VAR Detection (Only allowed if directly resulting in a disallowed goal)
   if (typeText.includes('var') || lowerText.includes('var decision') || lowerText.includes('var:')) {
+    const isAwardedGoal =
+      lowerText.includes('goal stands') ||
+      lowerText.includes('goal awarded') ||
+      lowerText.includes('decision overturned, goal') ||
+      lowerText.includes('overturned - goal') ||
+      lowerText.includes('overturned: goal') ||
+      lowerText.includes('overturned to goal');
     const isDisallowed =
-      lowerText.includes('disallowed') ||
-      lowerText.includes('overturned') ||
-      lowerText.includes('no goal');
+      !isAwardedGoal &&
+      (lowerText.includes('disallowed') ||
+       lowerText.includes('overturned') ||
+       lowerText.includes('no goal'));
 
     if (isDisallowed) {
       return {
