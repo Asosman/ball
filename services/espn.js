@@ -2,7 +2,7 @@
 import axios from 'axios';
 import config from '../config/env.js';
 import logger from '../utils/logger.js';
-import { isDateInTodayWAT, formatKickoffWAT, getTodayDateWAT, getTodayDateIsoWAT } from '../utils/time.js';
+import { isDateInTodayWAT, isDateInDailyFetchWindowWAT, formatKickoffWAT, getTodayDateWAT, getTodayDateIsoWAT } from '../utils/time.js';
 import { withRetry, resolveWithFallbacks } from '../utils/retry.js';
 import { getCompetitionFlag } from '../utils/flags.js';
 
@@ -464,7 +464,16 @@ export async function fetchTodaysMatches(targetDateWAT = null) {
   const activeDateWAT = targetDateWAT || getTodayDateIsoWAT();
   const dateStrForEspn = activeDateWAT.replace(/-/g, ''); // YYYYMMDD
 
-  logger.info(`[ESPN] Fetching today's football matches...`);
+  // Calculate next date in YYYYMMDD to discover matches that will kickoff 12 hours after 6pm daily
+  const parts = activeDateWAT.split('-').map(Number);
+  const nextDt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 1));
+  const nextYear = nextDt.getUTCFullYear();
+  const nextMonth = String(nextDt.getUTCMonth() + 1).padStart(2, '0');
+  const nextDay = String(nextDt.getUTCDate()).padStart(2, '0');
+  const nextDateStrForEspn = `${nextYear}${nextMonth}${nextDay}`;
+  const datesToQuery = [dateStrForEspn, nextDateStrForEspn];
+
+  logger.info(`[ESPN] Fetching today's football matches (including matches kicking off 12h after 6pm daily)...`);
   logger.info(`[ESPN] Date: ${activeDateWAT}`);
   logger.info(`[ESPN] Timezone: Africa/Lagos`);
 
@@ -491,21 +500,23 @@ export async function fetchTodaysMatches(targetDateWAT = null) {
           if (apiSlug && apiSlug.startsWith('afc.champions')) {
             apiSlug = 'afc.champions';
           }
-          const url = `${SITE_BASE}/${apiSlug}/scoreboard?dates=${dateStrForEspn}`;
-          const res = await withRetry(() => apiClient.get(url), 1, `ESPN ${league.name} Scoreboard`);
-          const events = res.data?.events || [];
+          for (const dStr of datesToQuery) {
+            const url = `${SITE_BASE}/${apiSlug}/scoreboard?dates=${dStr}`;
+            const res = await withRetry(() => apiClient.get(url), 1, `ESPN ${league.name} Scoreboard`);
+            const events = res.data?.events || [];
 
-          for (const ev of events) {
-            matchesDiscovered++;
-            const id = String(ev.id);
-            if (matchesMap.has(id)) {
-              duplicatesCount++;
-              continue;
-            }
+            for (const ev of events) {
+              matchesDiscovered++;
+              const id = String(ev.id);
+              if (matchesMap.has(id)) {
+                duplicatesCount++;
+                continue;
+              }
 
-            const kickoffUtc = ev.date || ev.competitions?.[0]?.date;
-            if (isDateInTodayWAT(kickoffUtc, activeDateWAT)) {
-              matchesMap.set(id, normalizeMatch(ev, league.slug));
+              const kickoffUtc = ev.date || ev.competitions?.[0]?.date;
+              if (isDateInDailyFetchWindowWAT(kickoffUtc, activeDateWAT)) {
+                matchesMap.set(id, normalizeMatch(ev, league.slug));
+              }
             }
           }
         } catch (err) {
@@ -516,25 +527,27 @@ export async function fetchTodaysMatches(targetDateWAT = null) {
   }
 
   // Also query the global 'all' scoreboard to discover ALL leagues and matches that the API gets
-  try {
-    competitionsChecked++;
-    const allUrl = `${SITE_BASE}/all/scoreboard?dates=${dateStrForEspn}`;
-    const allRes = await withRetry(() => apiClient.get(allUrl), 1, `ESPN Global Scoreboard`);
-    const allEvents = allRes.data?.events || [];
-    for (const ev of allEvents) {
-      matchesDiscovered++;
-      const id = String(ev.id);
-      if (matchesMap.has(id)) {
-        duplicatesCount++;
-        continue;
+  for (const dStr of datesToQuery) {
+    try {
+      competitionsChecked++;
+      const allUrl = `${SITE_BASE}/all/scoreboard?dates=${dStr}`;
+      const allRes = await withRetry(() => apiClient.get(allUrl), 1, `ESPN Global Scoreboard`);
+      const allEvents = allRes.data?.events || [];
+      for (const ev of allEvents) {
+        matchesDiscovered++;
+        const id = String(ev.id);
+        if (matchesMap.has(id)) {
+          duplicatesCount++;
+          continue;
+        }
+        const kickoffUtc = ev.date || ev.competitions?.[0]?.date;
+        if (isDateInDailyFetchWindowWAT(kickoffUtc, activeDateWAT)) {
+          matchesMap.set(id, normalizeMatch(ev, 'all'));
+        }
       }
-      const kickoffUtc = ev.date || ev.competitions?.[0]?.date;
-      if (isDateInTodayWAT(kickoffUtc, activeDateWAT)) {
-        matchesMap.set(id, normalizeMatch(ev, 'all'));
-      }
+    } catch (err) {
+      logger.debug(`Global scoreboard query returned: ${err.message}`);
     }
-  } catch (err) {
-    logger.debug(`Global scoreboard query returned: ${err.message}`);
   }
 
   const finalMatches = Array.from(matchesMap.values());

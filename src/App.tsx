@@ -11,7 +11,7 @@ import {
   Terminal,
   Sparkles,
 } from 'lucide-react';
-import { fetchScoreboard, getWATDates } from './services/espn';
+import { fetchScoreboard, getWATDates, isDateInDailyFetchWindowWAT } from './services/espn';
 import { MatchEventSummary } from './types';
 import { SUPPORTED_LEAGUES } from './utils/sportsConfig';
 import { Header, ViewTab } from './components/Header';
@@ -61,10 +61,10 @@ export default function App() {
     });
   }, []);
 
-  const { todayDateStr, yesterdayDateStr, todayFormattedDisplay, yesterdayFormattedDisplay } =
+  const { nowWAT, todayDateStr, yesterdayDateStr, tomorrowDateStr, todayFormattedDisplay, yesterdayFormattedDisplay } =
     useMemo(() => getWATDates(), []);
 
-  // Fetch both yesterday's and today's soccer matches from ESPN
+  // Fetch both yesterday's and today's soccer matches from ESPN (including matches kicking off 12h after 6pm daily)
   const loadMatches = useCallback(
     async (isBackground = false) => {
       if (!isBackground) setLoading(true);
@@ -76,10 +76,12 @@ export default function App() {
           : SUPPORTED_LEAGUES.find((l) => l.id === selectedLeagueId)?.slug || 'monitored-all';
 
       try {
-        // Fetch both yesterday and today scoreboards in parallel
-        const [yesterdayRes, todayRes] = await Promise.allSettled([
+        // Fetch yesterday, today, and tomorrow scoreboards in parallel
+        // (tomorrow is queried to capture matches that kickoff within 12 hours after 6pm daily)
+        const [yesterdayRes, todayRes, tomorrowRes] = await Promise.allSettled([
           fetchScoreboard('soccer', targetLeague, yesterdayDateStr),
           fetchScoreboard('soccer', targetLeague, todayDateStr),
+          fetchScoreboard('soccer', targetLeague, tomorrowDateStr),
         ]);
 
         // Process Yesterday's events: Filter strictly for completed match results
@@ -103,18 +105,21 @@ export default function App() {
           }
         });
 
-        // Process Today's events: All matches scheduled or in progress for today
-        const rawToday =
-          todayRes.status === 'fulfilled' && todayRes.value.events
-            ? todayRes.value.events
-            : [];
+        // Process Today's events: Matches scheduled for today + matches kicking off 12h after 6pm daily
+        const rawToday = [
+          ...(todayRes.status === 'fulfilled' && todayRes.value.events ? todayRes.value.events : []),
+          ...(tomorrowRes.status === 'fulfilled' && tomorrowRes.value.events ? tomorrowRes.value.events : []),
+        ];
 
         const seenToday = new Set<string>();
         const filteredToday: MatchEventSummary[] = [];
         rawToday.forEach((ev) => {
           if (!seenToday.has(ev.id)) {
-            seenToday.add(ev.id);
-            filteredToday.push(ev);
+            const kickoff = ev.date || ev.competitions?.[0]?.date;
+            if (isDateInDailyFetchWindowWAT(kickoff, nowWAT)) {
+              seenToday.add(ev.id);
+              filteredToday.push(ev);
+            }
           }
         });
 
@@ -135,7 +140,7 @@ export default function App() {
         setIsRefreshing(false);
       }
     },
-    [selectedLeagueId, yesterdayDateStr, todayDateStr]
+    [selectedLeagueId, yesterdayDateStr, todayDateStr, tomorrowDateStr, nowWAT]
   );
 
   useEffect(() => {

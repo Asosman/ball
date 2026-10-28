@@ -2,7 +2,8 @@
 import assert from 'assert';
 import config from './config/env.js';
 import { formatEventPost, formatLineupPost, formatFixturesPost, compareMatchState, makeUnicodeBold } from './services/eventEngine.js';
-import { getCompetitionFlag, getMatchResultPrefix, formatResultLine, ENGLAND_FLAG } from './utils/flags.js';
+import { getCompetitionFlag, getMatchResultPrefix, getMatchShootout, formatResultLine, ENGLAND_FLAG } from './utils/flags.js';
+import { isDateInDailyFetchWindowWAT, isDateInTodayWAT } from './utils/time.js';
 import { getPostSpacingWaitMs, MIN_POST_SPACING_MS, TARGET_POST_SPACING_MS } from './services/updateScheduler.js';
 import { COMPREHENSIVE_LEAGUES } from './services/espn.js';
 import { generateDynamicFallbackInfo } from './services/aiCommentary.js';
@@ -910,7 +911,8 @@ console.log(`APEN Result Line: ${apenResultLine}`);
 console.log(`APEN Post Line:\n${apenPost.split('\n')[0]}`);
 assert.strictEqual(apenPrefix, 'APEN', 'Match entering penalty shootout must have APEN prefix');
 assert(apenResultLine.startsWith('APEN '), 'Result line must start with APEN');
-assert(apenPost.includes('APEN 𝐀𝐫𝐠𝐞𝐧𝐭𝐢𝐧𝐚 3 - 3 𝐅𝐫𝐚𝐧𝐜𝐞'), 'Event post must format APEN Argentina 3 - 3 France');
+assert(apenResultLine.includes('(4) 3 : 3(2)'), 'Result line must include shootout score: (4) 3 : 3(2)');
+assert(apenPost.includes('APEN 𝐀𝐫𝐠𝐞𝐧𝐭𝐢𝐧𝐚 (4) 3 - 3(2) 𝐅𝐫𝐚𝐧𝐜𝐞'), 'Event post must format APEN Argentina (4) 3 - 3(2) France');
 console.log('✅ PASS: FT, AET, and APEN correctly assigned and formatted across results and lifecycle posts.\n');
 
 // ---------------------------------------------------------------------------
@@ -970,6 +972,84 @@ assert(penMissedPost.includes(`${makeUnicodeBold('Bukayo Saka')} (Penalty Missed
 assert(penMissedPost.includes('Stay tuned for more updates!'), 'Post must include call-to-action');
 console.log('✅ PASS: Penalty Missed event detected, whitelisted, and formatted into Facebook post.\n');
 
+// ---------------------------------------------------------------------------
+// TEST 18: Exact User Shootout Format Check: APEN 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 (4) 0 - 0(5) 𝐂𝐡𝐞𝐥𝐬𝐞𝐚
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 18] Exact User Shootout Result Line & Post Format:');
+const arsenalChelseaShootoutMatch = {
+  fixtureId: 'match-shootout-exact-1',
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueSlug: 'eng.fa',
+  leagueName: 'English FA Cup',
+  score: { home: 0, away: 0 },
+  shootout: { home: 4, away: 5 },
+  status: { state: 'post', period: 5, description: 'Chelsea win 5-4 on penalties', name: 'STATUS_FINAL_PEN' },
+};
+const shootoutLifecycleEvent = {
+  type: 'AFTER_EXTRA_TIME_OR_SHOOTOUT',
+  period: 5,
+  homeScore: 0,
+  awayScore: 0,
+  shootout: { home: 4, away: 5 },
+};
+
+const shootoutPost = formatEventPost(shootoutLifecycleEvent, arsenalChelseaShootoutMatch);
+console.log('Generated Shootout Event Post:\n' + shootoutPost);
+const firstLine = shootoutPost.split('\n')[0];
+console.log('First line of shootout post: ' + firstLine);
+
+const expectedExactLine = `APEN ${makeUnicodeBold('Arsenal')} (4) 0 - 0(5) ${makeUnicodeBold('Chelsea')}`;
+assert.strictEqual(firstLine, expectedExactLine, `Must match exact format: ${expectedExactLine}`);
+assert(shootoutPost.includes('APEN 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 (4) 0 - 0(5) 𝐂𝐡𝐞𝐥𝐬𝐞𝐚'), 'Must match APEN 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 (4) 0 - 0(5) 𝐂𝐡𝐞𝐥𝐬𝐞𝐚');
+
+// Also check fixtures summary results formatting for yesterday
+const yesterdayPost = formatFixturesPost([arsenalChelseaShootoutMatch], 'Yesterday (Sat, Oct 24, 2026)');
+console.log('\nYesterday Fixtures Shootout Line:\n' + yesterdayPost);
+assert(yesterdayPost.includes('APEN 🏴󠁧󠁢󠁥󠁮󠁧󠁿 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 (4) 0 : 0(5) 𝐂𝐡𝐞𝐥𝐬𝐞𝐚'), 'Yesterday fixtures must format APEN with (4) and (5)');
+console.log('✅ PASS: Shootout results format APEN 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 (4) 0 - 0(5) 𝐂𝐡𝐞𝐥𝐬𝐞𝐚 verified.\n');
+
+// ---------------------------------------------------------------------------
+// TEST 19: Daily Match Fetching (12 hours after 6pm daily + daily matches just like before)
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 19] Daily Match Fetching 12 Hours After 6pm Window Check:');
+const baseDate = '2026-10-28'; // Today in Africa/Lagos
+
+// Case 1: Today afternoon (15:00 WAT = 14:00 UTC) -> Included (Daily match just like before)
+const matchTodayAfternoon = '2026-10-28T14:00:00Z';
+assert.strictEqual(isDateInDailyFetchWindowWAT(matchTodayAfternoon, baseDate), true, 'Today afternoon match must be included');
+
+// Case 2: Today evening after 6pm (20:00 WAT = 19:00 UTC) -> Included
+const matchTodayEvening = '2026-10-28T19:00:00Z';
+assert.strictEqual(isDateInDailyFetchWindowWAT(matchTodayEvening, baseDate), true, 'Today evening match must be included');
+
+// Case 3: Today late night (23:30 WAT = 22:30 UTC) -> Included
+const matchTodayLate = '2026-10-28T22:30:00Z';
+assert.strictEqual(isDateInDailyFetchWindowWAT(matchTodayLate, baseDate), true, 'Today 23:30 match must be included');
+
+// Case 4: Tomorrow morning 02:00 WAT (01:00 UTC) (8 hours after 6pm today) -> Included!
+const matchTomorrow0200 = '2026-10-29T01:00:00Z';
+assert.strictEqual(isDateInDailyFetchWindowWAT(matchTomorrow0200, baseDate), true, 'Tomorrow 02:00 WAT (8h after 6pm) must be included');
+
+// Case 5: Tomorrow morning 05:30 WAT (04:30 UTC) (11.5 hours after 6pm today) -> Included!
+const matchTomorrow0530 = '2026-10-29T04:30:00Z';
+assert.strictEqual(isDateInDailyFetchWindowWAT(matchTomorrow0530, baseDate), true, 'Tomorrow 05:30 WAT (11.5h after 6pm) must be included');
+
+// Case 6: Tomorrow morning 06:00 WAT (05:00 UTC) (Exactly 12 hours after 6pm today) -> Included!
+const matchTomorrow0600 = '2026-10-29T05:00:00Z';
+assert.strictEqual(isDateInDailyFetchWindowWAT(matchTomorrow0600, baseDate), true, 'Tomorrow 06:00 WAT (exactly 12h after 6pm) must be included');
+
+// Case 7: Tomorrow morning 07:00 WAT (06:00 UTC) (13 hours after 6pm today) -> Excluded!
+const matchTomorrow0700 = '2026-10-29T06:00:00Z';
+assert.strictEqual(isDateInDailyFetchWindowWAT(matchTomorrow0700, baseDate), false, 'Tomorrow 07:00 WAT (13h after 6pm) must be excluded');
+
+// Case 8: Yesterday night 23:00 WAT (22:00 UTC) -> Excluded!
+const matchYesterday = '2026-10-27T22:00:00Z';
+assert.strictEqual(isDateInDailyFetchWindowWAT(matchYesterday, baseDate), false, 'Yesterday match must be excluded');
+
+console.log('✅ PASS: Daily match fetching correctly includes daily matches and matches kicking off within 12 hours after 6pm.\n');
+
 console.log('====================================================');
-console.log('  🎉 ALL 17 TESTS PASSED! ALL FIXES VERIFIED.');
+console.log('  🎉 ALL 19 TESTS PASSED! ALL FIXES VERIFIED.');
 console.log('====================================================\n');
+

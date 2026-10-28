@@ -19,15 +19,36 @@ export const CDN_BASE = 'https://cdn.espn.com/core';
 export function getWATDates() {
   const nowWAT = DateTime.now().setZone('Africa/Lagos');
   const yestWAT = nowWAT.minus({ days: 1 });
+  const tomorrowWAT = nowWAT.plus({ days: 1 });
 
   return {
     nowWAT,
     yestWAT,
+    tomorrowWAT,
     todayDateStr: nowWAT.toFormat('yyyyLLdd'),
     yesterdayDateStr: yestWAT.toFormat('yyyyLLdd'),
+    tomorrowDateStr: tomorrowWAT.toFormat('yyyyLLdd'),
     todayFormattedDisplay: nowWAT.toFormat('ccc, LLL d, yyyy'),
     yesterdayFormattedDisplay: yestWAT.toFormat('ccc, LLL d, yyyy'),
   };
+}
+
+/**
+ * Checks if a given UTC ISO-8601 string from ESPN qualifies for daily match fetching:
+ * - Matches strictly on the daily calendar date in Africa/Lagos (just like before)
+ * - PLUS matches that kickoff within 12 hours after 6pm daily (i.e. extending up to 06:00 WAT the following morning).
+ */
+export function isDateInDailyFetchWindowWAT(utcIsoString?: string, baseDateWAT?: DateTime): boolean {
+  if (!utcIsoString) return false;
+  try {
+    const dt = DateTime.fromISO(utcIsoString, { zone: 'utc' }).setZone('Africa/Lagos');
+    if (!dt.isValid) return false;
+    const base = (baseDateWAT || DateTime.now().setZone('Africa/Lagos')).startOf('day');
+    const windowEnd = base.plus({ hours: 30 }); // 12 hours after 6pm (18:00 + 12h = 06:00 next day)
+    return dt >= base && dt <= windowEnd;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -113,6 +134,8 @@ export function normalizeCompetitor(c: any, index: number = 0): TeamCompetitor {
   const homeAway = c?.homeAway || (index === 0 ? 'home' : 'away');
   const score =
     c?.score !== undefined && c?.score !== null ? String(c.score) : '-';
+  const shootoutScore =
+    c?.shootoutScore !== undefined && c?.shootoutScore !== null ? String(c.shootoutScore) : undefined;
 
   return {
     id: teamId,
@@ -125,6 +148,7 @@ export function normalizeCompetitor(c: any, index: number = 0): TeamCompetitor {
     alternateColor: teamObj.alternateColor || c?.alternateColor,
     logo,
     score,
+    shootoutScore,
     homeAway,
     winner: Boolean(c?.winner),
     team: {
@@ -292,6 +316,19 @@ async function fetchSingleLeagueScoreboard(
       const cleanLeague = resolveLeagueDisplayName(resolvedLeagueSlug, seasonSlug, altLeagueName);
       const details = comp.details || e.details || [];
 
+      let shootout: { home: number; away: number } | null = null;
+      const homeC = competitors.find((c: any) => c.homeAway === 'home');
+      const awayC = competitors.find((c: any) => c.homeAway === 'away');
+      if (homeC?.shootoutScore !== undefined && awayC?.shootoutScore !== undefined) {
+        const h = parseInt(String(homeC.shootoutScore), 10);
+        const a = parseInt(String(awayC.shootoutScore), 10);
+        if (!isNaN(h) && !isNaN(a)) {
+          shootout = { home: h, away: a };
+        }
+      } else if (e.shootout?.home !== undefined && e.shootout?.away !== undefined) {
+        shootout = { home: parseInt(e.shootout.home, 10), away: parseInt(e.shootout.away, 10) };
+      }
+
       return {
         id: String(e.id),
         uid: e.uid,
@@ -303,6 +340,7 @@ async function fetchSingleLeagueScoreboard(
         resolvedLeagueSlug,
         details,
         status: e.status,
+        shootout,
         competitions: [
           {
             ...comp,

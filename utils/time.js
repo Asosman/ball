@@ -36,15 +36,46 @@ export function getYesterdayDateIsoWAT() {
 }
 
 /**
- * Checks if a given UTC ISO-8601 string from ESPN belongs strictly
- * to today's calendar date in Africa/Lagos.
- * Never includes yesterday, tomorrow, or future dates.
+ * Checks if a given UTC ISO-8601 string from ESPN qualifies for daily match fetching:
+ * - Matches strictly on the daily calendar date in Africa/Lagos (just like before)
+ * - PLUS matches that kickoff within 12 hours after 6pm daily (i.e. extending up to 06:00 WAT the following morning).
  * @param {string} utcIsoString
  * @param {string} [targetDateWAT] optional override date in YYYY-MM-DD format (defaults to current date in WAT)
  * @returns {boolean}
  */
-export function isDateInTodayWAT(utcIsoString, targetDateWAT = null) {
+export function isDateInDailyFetchWindowWAT(utcIsoString, targetDateWAT = null) {
   if (!utcIsoString) return false;
+  try {
+    const dtInWAT = DateTime.fromISO(utcIsoString, { zone: 'utc' }).setZone(TIMEZONE_WAT);
+    if (!dtInWAT.isValid) return false;
+
+    const baseDateStr = targetDateWAT || getTodayDateIsoWAT();
+    const baseDayStart = DateTime.fromISO(baseDateStr, { zone: TIMEZONE_WAT }).startOf('day');
+    if (!baseDayStart.isValid) return false;
+
+    // Daily matches just like before: from baseDayStart (00:00:00)
+    // 12 hours after 6pm daily: 6pm is baseDayStart + 18 hours (18:00:00); 12 hours after is baseDayStart + 30 hours (06:00:00 next morning)
+    const windowEnd = baseDayStart.plus({ hours: 30 });
+
+    return dtInWAT >= baseDayStart && dtInWAT <= windowEnd;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * Checks if a given UTC ISO-8601 string from ESPN belongs
+ * to today's calendar date in Africa/Lagos or the extended 12h-after-6pm daily fetch window.
+ * @param {string} utcIsoString
+ * @param {string} [targetDateWAT] optional override date in YYYY-MM-DD format (defaults to current date in WAT)
+ * @param {boolean} [strictCalendarDay=false] if true, restricts strictly to the single calendar date
+ * @returns {boolean}
+ */
+export function isDateInTodayWAT(utcIsoString, targetDateWAT = null, strictCalendarDay = false) {
+  if (!utcIsoString) return false;
+  if (!strictCalendarDay) {
+    return isDateInDailyFetchWindowWAT(utcIsoString, targetDateWAT);
+  }
   try {
     const dtInWAT = DateTime.fromISO(utcIsoString, { zone: 'utc' }).setZone(TIMEZONE_WAT);
     if (!dtInWAT.isValid) return false;

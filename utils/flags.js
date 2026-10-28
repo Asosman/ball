@@ -757,8 +757,39 @@ export function getMatchResultPrefix(match, event) {
 }
 
 /**
+ * Extracts shootout scores if present on match or event.
+ * @param {object} match
+ * @param {object} [event]
+ * @returns {{ home: number, away: number } | null}
+ */
+export function getMatchShootout(match, event) {
+  const m = match || {};
+  const ev = event || {};
+  const s = m.shootout || ev.shootout || m.score?.shootout || ev.score?.shootout;
+  if (s && s.home !== undefined && s.away !== undefined && s.home !== null && s.away !== null) {
+    const h = parseInt(s.home, 10);
+    const a = parseInt(s.away, 10);
+    if (!isNaN(h) && !isNaN(a)) {
+      return { home: h, away: a };
+    }
+  }
+  const comp = m.competitions?.[0] || m.raw?.competitions?.[0];
+  const competitors = m.competitors || comp?.competitors || [];
+  const homeComp = competitors.find((c) => c.homeAway === 'home') || competitors[0];
+  const awayComp = competitors.find((c) => c.homeAway === 'away') || competitors[1];
+  if (homeComp?.shootoutScore !== undefined && awayComp?.shootoutScore !== undefined) {
+    const h = parseInt(homeComp.shootoutScore, 10);
+    const a = parseInt(awayComp.shootoutScore, 10);
+    if (!isNaN(h) && !isNaN(a)) {
+      return { home: h, away: a };
+    }
+  }
+  return null;
+}
+
+/**
  * Formats a result line with its country flag:
- * Example: "FT 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Arsenal 3 : 1 Manchester United" or "AET ..." or "APEN ..."
+ * Example: "FT 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Arsenal 3 : 1 Manchester United" or "AET ..." or "APEN 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Arsenal (4) 0 : 0(5) Chelsea"
  * @param {string} home home team display string
  * @param {string} away away team display string
  * @param {number|string} homeScore
@@ -774,5 +805,10 @@ export function formatResultLine(home, away, homeScore, awayScore, match, event)
   const hScore = homeScore ?? 0;
   const aScore = awayScore ?? 0;
   const prefix = getMatchResultPrefix(match, event);
+  const shootout = getMatchShootout(match, event);
+  if (prefix === 'APEN' && shootout) {
+    return `${prefix} ${flag} ${cleanHome} (${shootout.home}) ${hScore} : ${aScore}(${shootout.away}) ${cleanAway}`;
+  }
   return `${prefix} ${flag} ${cleanHome} ${hScore} : ${aScore} ${cleanAway}`;
 }
+

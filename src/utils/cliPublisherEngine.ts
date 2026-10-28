@@ -583,6 +583,34 @@ export function getMatchResultPrefix(match?: any, event?: any): 'FT' | 'AET' | '
 }
 
 /**
+ * Extracts shootout scores if present on match or event.
+ */
+export function getMatchShootout(match?: any, event?: any): { home: number; away: number } | null {
+  const m = match || {};
+  const ev = event || {};
+  const s = m.shootout || ev.shootout || m.score?.shootout || ev.score?.shootout;
+  if (s && s.home !== undefined && s.away !== undefined && s.home !== null && s.away !== null) {
+    const h = parseInt(s.home, 10);
+    const a = parseInt(s.away, 10);
+    if (!isNaN(h) && !isNaN(a)) {
+      return { home: h, away: a };
+    }
+  }
+  const comp = m.competitions?.[0] || m.raw?.competitions?.[0];
+  const competitors = m.competitors || comp?.competitors || [];
+  const homeComp = competitors.find((c: any) => c.homeAway === 'home') || competitors[0];
+  const awayComp = competitors.find((c: any) => c.homeAway === 'away') || competitors[1];
+  if (homeComp?.shootoutScore !== undefined && awayComp?.shootoutScore !== undefined) {
+    const h = parseInt(homeComp.shootoutScore, 10);
+    const a = parseInt(awayComp.shootoutScore, 10);
+    if (!isNaN(h) && !isNaN(a)) {
+      return { home: h, away: a };
+    }
+  }
+  return null;
+}
+
+/**
  * Formats Yesterday's Results Post for Facebook
  * Exactly matches the CLI's formatFixturesPost for yesterday
  */
@@ -631,7 +659,12 @@ export function formatYesterdayResultsPost(
       const awayBold = makeUnicodeBold(away);
       const flag = getMatchFlag(m);
       const prefix = getMatchResultPrefix(m);
-      lines.push(`${prefix} ${flag} ${homeBold} ${hScore} : ${aScore} ${awayBold}`);
+      const shootout = getMatchShootout(m);
+      if (prefix === 'APEN' && shootout) {
+        lines.push(`${prefix} ${flag} ${homeBold} (${shootout.home}) ${hScore} : ${aScore}(${shootout.away}) ${awayBold}`);
+      } else {
+        lines.push(`${prefix} ${flag} ${homeBold} ${hScore} : ${aScore} ${awayBold}`);
+      }
     });
   }
 

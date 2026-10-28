@@ -42,6 +42,7 @@ import {
   extractScore,
   getMatchFlag,
   getMatchResultPrefix,
+  getMatchShootout,
   formatKickoffWAT,
 } from '../utils/cliPublisherEngine';
 import { getWATDates } from '../services/espn';
@@ -541,6 +542,10 @@ export const CliConsoleHub: React.FC<CliConsoleHubProps> = ({
                   const { home: hScore, away: aScore } = extractScore(m);
                   const flag = getMatchFlag(m);
                   const prefix = getMatchResultPrefix(m);
+                  const shootout = getMatchShootout(m);
+                  if (prefix === 'APEN' && shootout) {
+                    return `  ${prefix} ${flag} ${home} (${shootout.home}) ${hScore} : ${aScore}(${shootout.away}) ${away}`;
+                  }
                   return `  ${prefix} ${flag} ${home} ${hScore} : ${aScore} ${away}`;
                 })
                 .join('\n'),

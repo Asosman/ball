@@ -48,6 +48,7 @@ export interface TeamCompetitor {
     displayValue?: string;
     period?: number;
   }>;
+  shootoutScore?: string | number;
 }
 
 export interface MatchDetailEvent {
@@ -105,6 +106,7 @@ export interface MatchEventSummary {
   flag?: string;
   details?: MatchDetailEvent[];
   commentary?: any[];
+  shootout?: { home: number; away: number } | null;
   status: {
     clock?: number;
     displayClock?: string;

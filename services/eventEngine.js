@@ -2,7 +2,7 @@
 import { buildMatchHashtags } from '../utils/hashtags.js';
 import logger from '../utils/logger.js';
 import config from '../config/env.js';
-import { getMatchFlag, getMatchResultPrefix } from '../utils/flags.js';
+import { getMatchFlag, getMatchResultPrefix, getMatchShootout } from '../utils/flags.js';
 import { generateDynamicFallbackInfo } from './aiCommentary.js';
 
 /**
@@ -462,7 +462,12 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
     sections.push(`HT ${home} ${homeScore} - ${awayScore} ${away}`);
   } else if (isResult) {
     const prefix = getMatchResultPrefix(currentMatch, event);
-    sections.push(`${prefix} ${home} ${homeScore} - ${awayScore} ${away}`);
+    const shootout = getMatchShootout(currentMatch, event);
+    if (prefix === 'APEN' && shootout) {
+      sections.push(`${prefix} ${home} (${shootout.home}) ${homeScore} - ${awayScore}(${shootout.away}) ${away}`);
+    } else {
+      sections.push(`${prefix} ${home} ${homeScore} - ${awayScore} ${away}`);
+    }
   } else {
     sections.push(`⏱️ ${clock}`);
     sections.push(`${home} ${homeScore} - ${awayScore} ${away}`);
@@ -718,7 +723,12 @@ export function formatFixturesPost(matches, dateDisplay, options = {}) {
       const flag = getMatchFlag(m);
       if (isYesterday) {
         const prefix = getMatchResultPrefix(m);
-        lines.push(`${prefix} ${flag} ${homeBold} ${m.score?.home ?? 0} : ${m.score?.away ?? 0} ${awayBold}`);
+        const shootout = getMatchShootout(m);
+        if (prefix === 'APEN' && shootout) {
+          lines.push(`${prefix} ${flag} ${homeBold} (${shootout.home}) ${m.score?.home ?? 0} : ${m.score?.away ?? 0}(${shootout.away}) ${awayBold}`);
+        } else {
+          lines.push(`${prefix} ${flag} ${homeBold} ${m.score?.home ?? 0} : ${m.score?.away ?? 0} ${awayBold}`);
+        }
       } else {
         lines.push(`${m.kickoffFormattedWAT || 'TBD'} ${flag} ${homeBold} vs ${awayBold}`);
       }
@@ -1831,4 +1841,6 @@ export default {
   findMatchingLineupPlayer,
   getCanonicalEventId,
   getEventContentSignature,
+  getMatchResultPrefix,
+  getMatchShootout,
 };
