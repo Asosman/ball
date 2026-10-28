@@ -756,6 +756,16 @@ export function isShootoutEvent(item) {
 }
 
 /**
+ * Helper to determine if a play/event is from a penalty shootout.
+ * Shootout penalty kicks are post-match tiebreakers and must never be treated as in-game penalties.
+ * @param {any} item
+ * @returns {boolean}
+ */
+export function isPenaltyShootoutPlay(item) {
+  return isShootoutEvent(item);
+}
+
+/**
  * Normalizes an in-match event from ESPN keyEvents, commentary, or plays.
  * Handles goals, red cards, injuries, penalties, VAR, state transitions.
  * @param {any} item

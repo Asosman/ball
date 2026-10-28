@@ -5,7 +5,7 @@ import { formatEventPost, formatLineupPost, formatFixturesPost, compareMatchStat
 import { getCompetitionFlag, getMatchResultPrefix, getMatchShootout, formatResultLine, ENGLAND_FLAG } from './utils/flags.js';
 import { isDateInDailyFetchWindowWAT, isDateInTodayWAT } from './utils/time.js';
 import { getPostSpacingWaitMs, MIN_POST_SPACING_MS, TARGET_POST_SPACING_MS } from './services/updateScheduler.js';
-import { COMPREHENSIVE_LEAGUES } from './services/espn.js';
+import { COMPREHENSIVE_LEAGUES, isPenaltyShootoutPlay, isShootoutEvent, normalizeEvent } from './services/espn.js';
 import { generateDynamicFallbackInfo } from './services/aiCommentary.js';
 
 console.log('====================================================');
@@ -1049,7 +1049,55 @@ assert.strictEqual(isDateInDailyFetchWindowWAT(matchYesterday, baseDate), false,
 
 console.log('✅ PASS: Daily match fetching correctly includes daily matches and matches kicking off within 12 hours after 6pm.\n');
 
+// ---------------------------------------------------------------------------
+// TEST 20: isPenaltyShootoutPlay Definition & Commentary / Plays Normalization Check
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 20] isPenaltyShootoutPlay Scope & Event Normalization Check:');
+assert.strictEqual(typeof isPenaltyShootoutPlay, 'function', 'isPenaltyShootoutPlay must be defined as a function');
+assert.strictEqual(typeof isShootoutEvent, 'function', 'isShootoutEvent must be defined as a function');
+
+// Shootout play item (period 5 or shootout text)
+const shootoutItem = {
+  id: 'play-so-1',
+  period: { number: 5 },
+  type: { text: 'Penalty Shootout - Scored' },
+  text: 'Penalty Shootout GOAL! Cole Palmer scores.',
+  scoringPlay: true,
+};
+assert.strictEqual(isPenaltyShootoutPlay(shootoutItem), true, 'Shootout play must be recognized as shootout play');
+assert.strictEqual(isShootoutEvent(shootoutItem), true, 'Shootout play must be recognized as shootout event');
+
+// Regular match play item (regular penalty missed or scored)
+const regularPenaltyMissedItem = {
+  id: 'play-pen-missed-1',
+  period: { number: 1 },
+  type: { text: 'Penalty - Missed' },
+  text: 'Penalty missed! Bukayo Saka hits the post.',
+  outcome: 'MISSED',
+  team: { id: 'arsenal', displayName: 'Arsenal' },
+  athletesInvolved: [{ displayName: 'Bukayo Saka' }],
+};
+assert.strictEqual(isPenaltyShootoutPlay(regularPenaltyMissedItem), false, 'Regular penalty missed must NOT be recognized as shootout');
+
+// Normalizing regular penalty missed should not throw and should return PENALTY_MISSED event
+const normalizedPenMissed = normalizeEvent(regularPenaltyMissedItem, {
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+});
+assert(normalizedPenMissed !== null, 'Regular penalty missed must parse successfully');
+assert.strictEqual(normalizedPenMissed.type, 'PENALTY_MISSED', 'Event type must be PENALTY_MISSED');
+assert.strictEqual(normalizedPenMissed.player, 'Bukayo Saka', 'Player must be parsed');
+
+// Normalizing shootout event should return null (filtered out from regular match flow)
+const normalizedShootout = normalizeEvent(shootoutItem, {
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+});
+assert.strictEqual(normalizedShootout, null, 'Shootout items must be ignored by normalizeEvent');
+
+console.log('✅ PASS: isPenaltyShootoutPlay is defined, correctly distinguishes shootouts, and does not crash.\n');
+
 console.log('====================================================');
-console.log('  🎉 ALL 19 TESTS PASSED! ALL FIXES VERIFIED.');
+console.log('  🎉 ALL 20 TESTS PASSED! ALL FIXES VERIFIED.');
 console.log('====================================================\n');
 
