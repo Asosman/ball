@@ -94,10 +94,15 @@ export function getMatchFlag(match: any): string {
     return '🌏';
   }
 
+  // Russia
+  if (slug.startsWith('rus.') || name.includes('russian') || name.includes('russia')) {
+    return '🇷🇺';
+  }
+
   // England: Must be 🏴󠁧󠁢󠁥󠁮󠁧󠁿, NOT 🇬🇧
   if (
     slug.startsWith('eng.') ||
-    name.includes('premier league') ||
+    (name.includes('premier league') && !name.includes('russian') && !name.includes('russia') && !slug.startsWith('rus.')) ||
     name.includes('fa cup') ||
     name.includes('carabao') ||
     name.includes('efl') ||
@@ -533,6 +538,51 @@ export function formatTodayLowFixturesPost(matches: MatchEventSummary[], dateDis
 }
 
 /**
+ * Resolves the status prefix for a match result line:
+ * - 'APEN' if the match entered a penalty shootout
+ * - 'AET' if the match entered extra time (without penalty shootout)
+ * - 'FT' if the match concluded in normal time without extra time
+ */
+export function getMatchResultPrefix(match?: any, event?: any): 'FT' | 'AET' | 'APEN' {
+  const m = match || {};
+  const ev = event || {};
+  const statusDesc = (m.status?.description || m.status?.detail || m.statusDetail || '').toLowerCase();
+  const statusName = (m.status?.name || m.status || '').toUpperCase();
+  const period = m.status?.period || ev.period || m.period || 0;
+
+  const hasShootout = Boolean(
+    m.shootout ||
+    ev.shootout ||
+    statusName.includes('PEN') ||
+    statusDesc.includes('shootout') ||
+    statusDesc.includes('penalties') ||
+    statusDesc.includes('pen.') ||
+    statusDesc.includes('(pen)') ||
+    period >= 5
+  );
+
+  if (hasShootout) {
+    return 'APEN';
+  }
+
+  const hasExtraTime = Boolean(
+    ev.type === 'AFTER_EXTRA_TIME_OR_SHOOTOUT' ||
+    ev.type === 'FULL_TIME_POST_ET' ||
+    statusName.includes('AET') ||
+    statusDesc.includes('aet') ||
+    statusDesc.includes('extra time') ||
+    period === 3 ||
+    period === 4
+  );
+
+  if (hasExtraTime) {
+    return 'AET';
+  }
+
+  return 'FT';
+}
+
+/**
  * Formats Yesterday's Results Post for Facebook
  * Exactly matches the CLI's formatFixturesPost for yesterday
  */
@@ -580,7 +630,8 @@ export function formatYesterdayResultsPost(
       const homeBold = makeUnicodeBold(home);
       const awayBold = makeUnicodeBold(away);
       const flag = getMatchFlag(m);
-      lines.push(`FT ${flag} ${homeBold} ${hScore} : ${aScore} ${awayBold}`);
+      const prefix = getMatchResultPrefix(m);
+      lines.push(`${prefix} ${flag} ${homeBold} ${hScore} : ${aScore} ${awayBold}`);
     });
   }
 

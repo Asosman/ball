@@ -133,6 +133,14 @@ const OWN_GOAL_PHRASES = [
   'Misfortune strikes at the back with a deflection that nestles into the net!'
 ];
 
+const PENALTY_MISSED_PHRASES = [
+  'Huge drama from the penalty spot as the kick fails to find the back of the net!',
+  'Golden opportunity squandered from twelve yards out!',
+  'Sensational goalkeeping or agonizing miss! The penalty is not converted!',
+  'The goalkeeper guesses right to deny the spot-kick in a breathtaking moment!',
+  'Heartbreak from the spot! The penalty kick is missed!'
+];
+
 const RED_CARD_PHRASES = [
   'Major drama on the pitch as the referee brandishes the red card!',
   'Down to 10! A moment of madness changes the entire complexion of the clash!',
@@ -291,6 +299,10 @@ export function generateDynamicFallbackInfo(event, match = {}, customSeed = '') 
 
   if (type === 'PENALTY_SCORED') {
     return pickDynamicPhrase(PENALTY_PHRASES, seed);
+  }
+
+  if (type === 'PENALTY_MISSED') {
+    return pickDynamicPhrase(PENALTY_MISSED_PHRASES, seed);
   }
 
   if (type === 'OWN_GOAL') {

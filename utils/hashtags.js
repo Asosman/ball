@@ -8,6 +8,7 @@ const LEAGUE_HASHTAG_MAP = {
   'uefa europa conference league': ['#UECL'],
   'uefa conference league': ['#UECL'],
   'english premier league': ['#PremierLeague', '#EPL'],
+  'russian premier league': ['#RussianPremierLeague', '#RPL'],
   'premier league': ['#PremierLeague', '#EPL'],
   'laliga': ['#LaLiga'],
   'spanish laliga': ['#LaLiga'],

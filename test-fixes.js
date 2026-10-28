@@ -2,6 +2,7 @@
 import assert from 'assert';
 import config from './config/env.js';
 import { formatEventPost, formatLineupPost, formatFixturesPost, compareMatchState, makeUnicodeBold } from './services/eventEngine.js';
+import { getCompetitionFlag, getMatchResultPrefix, formatResultLine, ENGLAND_FLAG } from './utils/flags.js';
 import { getPostSpacingWaitMs, MIN_POST_SPACING_MS, TARGET_POST_SPACING_MS } from './services/updateScheduler.js';
 import { COMPREHENSIVE_LEAGUES } from './services/espn.js';
 import { generateDynamicFallbackInfo } from './services/aiCommentary.js';
@@ -809,6 +810,166 @@ assert.strictEqual(poll2Diff14.eventPostEdits.length, 0, 'No event post edits sh
 assert.strictEqual(poll2Diff14.events[goodGoal.eventId].status, 'VALID', 'Good goal must stay VALID, not flipped to DISALLOWED');
 console.log('✅ PASS: Good goal retains GOOOOALLLLL heading and is never marked or edited as disallowed.\n');
 
+// ---------------------------------------------------------------------------
+// TEST 15: Russian League Flag Check
+// Requirement: Russian Premier League must show Russian flag (🇷🇺), NOT England flag.
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 15] Russian League Flag Check:');
+const russianLeagueFlagBySlug = getCompetitionFlag('rus.1');
+const russianLeagueFlagByName = getCompetitionFlag('Russian Premier League');
+const russianMatchObj = {
+  leagueSlug: 'rus.1',
+  leagueName: 'Russian Premier League',
+  homeName: 'Zenit St. Petersburg',
+  awayName: 'Spartak Moscow',
+};
+const russianLeagueFlagByObj = getCompetitionFlag(russianMatchObj);
+
+console.log(`- Flag by slug ('rus.1'): ${russianLeagueFlagBySlug}`);
+console.log(`- Flag by name ('Russian Premier League'): ${russianLeagueFlagByName}`);
+console.log(`- Flag by match object: ${russianLeagueFlagByObj}`);
+
+assert.strictEqual(russianLeagueFlagBySlug, '🇷🇺', 'Russian league slug rus.1 must resolve to 🇷🇺');
+assert.strictEqual(russianLeagueFlagByName, '🇷🇺', 'Russian Premier League name must resolve to 🇷🇺');
+assert.strictEqual(russianLeagueFlagByObj, '🇷🇺', 'Russian match object must resolve to 🇷🇺');
+assert.notStrictEqual(russianLeagueFlagBySlug, ENGLAND_FLAG, 'Russian league must NOT resolve to England flag');
+assert.notStrictEqual(russianLeagueFlagByName, ENGLAND_FLAG, 'Russian Premier League must NOT resolve to England flag');
+console.log('✅ PASS: Russian league displays 🇷🇺 and never displays England flag.\n');
+
+// ---------------------------------------------------------------------------
+// TEST 16: Match Results Status Prefix (FT, AET, APEN) Check
+// Requirement:
+// - FT and final score if match didn't enter extra time
+// - AET and final score if match entered extra time
+// - APEN and final score if match entered penalty shootout
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 16] Match Results Status Prefix (FT, AET, APEN) Check:');
+
+// 1. Regular 90-minute match (no extra time)
+const normalMatch = {
+  fixtureId: 'normal-match-1',
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  leagueSlug: 'eng.1',
+  leagueName: 'Premier League',
+  score: { home: 2, away: 1 },
+  status: { state: 'post', period: 2, description: 'Full Time', name: 'STATUS_FULL_TIME' },
+};
+const normalEvent = { type: 'FULL_TIME', period: 2, homeScore: 2, awayScore: 1 };
+const normalPrefix = getMatchResultPrefix(normalMatch, normalEvent);
+const normalResultLine = formatResultLine(normalMatch.homeName, normalMatch.awayName, 2, 1, normalMatch, normalEvent);
+const normalPost = formatEventPost(normalEvent, normalMatch);
+
+console.log(`Normal Match Prefix: ${normalPrefix}`);
+console.log(`Normal Result Line: ${normalResultLine}`);
+console.log(`Normal Post Line:\n${normalPost.split('\n')[0]}`);
+assert.strictEqual(normalPrefix, 'FT', 'Match without extra time must have FT prefix');
+assert(normalResultLine.startsWith('FT '), 'Result line must start with FT');
+assert(normalPost.includes('FT 𝐀𝐫𝐬𝐞𝐧𝐚𝐥 2 - 1 𝐂𝐡𝐞𝐥𝐬𝐞𝐚'), 'Event post must format FT Arsenal 2 - 1 Chelsea');
+
+// 2. Extra time match (without penalties)
+const aetMatch = {
+  fixtureId: 'aet-match-2',
+  homeName: 'Real Madrid',
+  awayName: 'Bayern Munich',
+  leagueSlug: 'uefa.champions',
+  leagueName: 'UEFA Champions League',
+  score: { home: 3, away: 2 },
+  status: { state: 'post', period: 4, description: 'AET', detail: 'After Extra Time', name: 'STATUS_FINAL_AET' },
+};
+const aetEvent = { type: 'AFTER_EXTRA_TIME_OR_SHOOTOUT', period: 4, homeScore: 3, awayScore: 2 };
+const aetPrefix = getMatchResultPrefix(aetMatch, aetEvent);
+const aetResultLine = formatResultLine(aetMatch.homeName, aetMatch.awayName, 3, 2, aetMatch, aetEvent);
+const aetPost = formatEventPost(aetEvent, aetMatch);
+
+console.log(`\nAET Match Prefix: ${aetPrefix}`);
+console.log(`AET Result Line: ${aetResultLine}`);
+console.log(`AET Post Line:\n${aetPost.split('\n')[0]}`);
+assert.strictEqual(aetPrefix, 'AET', 'Match entering extra time must have AET prefix');
+assert(aetResultLine.startsWith('AET '), 'Result line must start with AET');
+assert(aetPost.includes('AET 𝐑𝐞𝐚𝐥 𝐌𝐚𝐝𝐫𝐢𝐝 3 - 2 𝐁𝐚𝐲𝐞𝐫𝐧 𝐌𝐮𝐧𝐢𝐜𝐡'), 'Event post must format AET Real Madrid 3 - 2 Bayern Munich');
+
+// 3. Penalty shootout match
+const apenMatch = {
+  fixtureId: 'apen-match-3',
+  homeName: 'Argentina',
+  awayName: 'France',
+  leagueSlug: 'fifa.world',
+  leagueName: 'FIFA World Cup',
+  score: { home: 3, away: 3 },
+  shootout: { home: 4, away: 2 },
+  status: { state: 'post', period: 5, description: 'Shootout', detail: 'Argentina win 4-2 on penalties', name: 'STATUS_FINAL_PEN' },
+};
+const apenEvent = { type: 'AFTER_EXTRA_TIME_OR_SHOOTOUT', period: 5, homeScore: 3, awayScore: 3, shootout: { home: 4, away: 2 } };
+const apenPrefix = getMatchResultPrefix(apenMatch, apenEvent);
+const apenResultLine = formatResultLine(apenMatch.homeName, apenMatch.awayName, 3, 3, apenMatch, apenEvent);
+const apenPost = formatEventPost(apenEvent, apenMatch);
+
+console.log(`\nAPEN Match Prefix: ${apenPrefix}`);
+console.log(`APEN Result Line: ${apenResultLine}`);
+console.log(`APEN Post Line:\n${apenPost.split('\n')[0]}`);
+assert.strictEqual(apenPrefix, 'APEN', 'Match entering penalty shootout must have APEN prefix');
+assert(apenResultLine.startsWith('APEN '), 'Result line must start with APEN');
+assert(apenPost.includes('APEN 𝐀𝐫𝐠𝐞𝐧𝐭𝐢𝐧𝐚 3 - 3 𝐅𝐫𝐚𝐧𝐜𝐞'), 'Event post must format APEN Argentina 3 - 3 France');
+console.log('✅ PASS: FT, AET, and APEN correctly assigned and formatted across results and lifecycle posts.\n');
+
+// ---------------------------------------------------------------------------
+// TEST 17: Penalty Missed Post Creation Check
+// Requirement:
+// - Whitelist and process PENALTY_MISSED events
+// - Create post for penalty missed with heading, time, scoreboard, details, hashtags
+// ---------------------------------------------------------------------------
+console.log('▶ [TEST 17] Penalty Missed Detection & Post Creation:');
+const test17FixtureId = 'fixture-penalty-missed-456';
+const matchStateBeforePen = {
+  fixtureId: test17FixtureId,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  status: { state: 'in', description: 'First Half', clock: "41'", period: 1 },
+  score: { home: 0, away: 0 },
+  events: {},
+};
+
+const matchStateWithMissedPen = {
+  fixtureId: test17FixtureId,
+  homeName: 'Arsenal',
+  awayName: 'Chelsea',
+  status: { state: 'in', description: 'First Half', clock: "42'", period: 1 },
+  score: { home: 0, away: 0 },
+  events: [
+    {
+      type: 'PENALTY',
+      outcome: 'MISSED',
+      minute: 42,
+      period: 1,
+      player: 'Bukayo Saka',
+      teamId: 'arsenal',
+      text: 'Penalty missed! Bad penalty by Bukayo Saka (Arsenal) left footed shot is saved in the bottom right corner.',
+    },
+  ],
+};
+
+const diff17 = compareMatchState(matchStateBeforePen, matchStateWithMissedPen);
+assert.strictEqual(diff17.newEvents.length, 1, 'Must emit exactly 1 new event for missed penalty');
+const missedPenEvent = diff17.newEvents[0];
+assert.strictEqual(missedPenEvent.type, 'PENALTY_MISSED', 'Event type must be PENALTY_MISSED');
+assert.strictEqual(missedPenEvent.player, 'Bukayo Saka', 'Player must be Bukayo Saka');
+assert.strictEqual(missedPenEvent.assist, null, 'Missed penalty must have no assist');
+assert.strictEqual(missedPenEvent.homeScore, 0, 'Score must remain 0-0');
+assert.strictEqual(missedPenEvent.awayScore, 0, 'Score must remain 0-0');
+
+const penMissedPost = formatEventPost(missedPenEvent, matchStateWithMissedPen);
+console.log('\nGenerated Penalty Missed Post Output:\n');
+console.log(penMissedPost);
+console.log('----------------------------------------------------');
+
+assert(penMissedPost.includes(makeUnicodeBold('PENALTY MISSED!')), 'Post must have PENALTY MISSED heading');
+assert(penMissedPost.includes('42\''), 'Post must include minute 42\'');
+assert(penMissedPost.includes('𝐀𝐫𝐬𝐞𝐧𝐚𝐥 0 - 0 𝐂𝐡𝐞𝐥𝐬𝐞𝐚'), 'Post must include current score 0 - 0');
+assert(penMissedPost.includes(`${makeUnicodeBold('Bukayo Saka')} (Penalty Missed)`), 'Post details must note Bukayo Saka (Penalty Missed)');
+assert(penMissedPost.includes('Stay tuned for more updates!'), 'Post must include call-to-action');
+console.log('✅ PASS: Penalty Missed event detected, whitelisted, and formatted into Facebook post.\n');
+
 console.log('====================================================');
-console.log('  🎉 ALL 14 TESTS PASSED! ALL FIXES VERIFIED.');
+console.log('  🎉 ALL 17 TESTS PASSED! ALL FIXES VERIFIED.');
 console.log('====================================================\n');

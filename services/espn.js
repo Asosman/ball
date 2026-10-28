@@ -868,6 +868,59 @@ function _normalizeEvent(item, matchContext = {}) {
       !lowerText.includes('over the bar');
 
     if (isPenaltyKick && !isPenaltyScored && !isDisallowed) {
+      const isPenaltyMissed =
+        !isPenaltyShootoutPlay(item) &&
+        (
+          typeText.includes('missed') ||
+          typeText.includes('saved') ||
+          lowerText.includes('penalty missed') ||
+          lowerText.includes('missed penalty') ||
+          lowerText.includes('penalty saved') ||
+          lowerText.includes('saved penalty') ||
+          lowerText.includes('penalty was saved') ||
+          lowerText.includes('penalty is saved') ||
+          lowerText.includes('saves the penalty') ||
+          lowerText.includes('penalty shot saved') ||
+          lowerText.includes('misses the penalty') ||
+          lowerText.includes('hits the post') ||
+          lowerText.includes('hit the post') ||
+          lowerText.includes('hits the bar') ||
+          lowerText.includes('hit the bar') ||
+          lowerText.includes('woodwork') ||
+          lowerText.includes('over the bar') ||
+          item.outcome === 'MISSED' ||
+          item.outcome === 'SAVED'
+        );
+
+      if (isPenaltyMissed) {
+        let player = primaryAthlete;
+        if (!player && text) {
+          const penMatch =
+            text.match(/penalty (?:missed|saved|taken) by ([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.-]+?)(?:\.|$|\(|,)/i) ||
+            text.match(/([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.-]+?)\s*\([A-Za-z0-9\s.-]+\)\s*(?:misses|penalty saved|penalty missed)/i) ||
+            text.match(/missed penalty by ([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.-]+?)(?:\.|$|\(|,)/i);
+          if (penMatch) player = penMatch[1].trim();
+        }
+
+        return {
+          id: item.id ? String(item.id) : undefined,
+          type: 'PENALTY_MISSED',
+          outcome: 'MISSED',
+          player: player || null,
+          teamId,
+          teamName,
+          minute: minute || 0,
+          period: item.period?.number || 1,
+          homeScore: matchContext.score?.home ?? 0,
+          awayScore: matchContext.score?.away ?? 0,
+          scoreAfterEvent: {
+            home: matchContext.score?.home ?? 0,
+            away: matchContext.score?.away ?? 0,
+          },
+          text,
+        };
+      }
+
       // Missed, saved, or non-scoring penalties are never goals
       return null;
     }
@@ -1127,6 +1180,60 @@ function _normalizeEvent(item, matchContext = {}) {
         homeScore: extractedHomeScore,
         awayScore: extractedAwayScore,
         scoreAfterEvent: hasValidScore ? { home: extractedHomeScore, away: extractedAwayScore } : null,
+        text,
+      };
+    }
+
+    // Missed or saved penalty detection
+    const isMissed =
+      !isPenaltyShootoutPlay(item) &&
+      (
+        typeText.includes('missed') ||
+        typeText.includes('saved') ||
+        lowerText.includes('penalty missed') ||
+        lowerText.includes('missed penalty') ||
+        lowerText.includes('penalty saved') ||
+        lowerText.includes('saved penalty') ||
+        lowerText.includes('penalty was saved') ||
+        lowerText.includes('penalty is saved') ||
+        lowerText.includes('saves the penalty') ||
+        lowerText.includes('penalty shot saved') ||
+        lowerText.includes('misses the penalty') ||
+        lowerText.includes('hits the post') ||
+        lowerText.includes('hit the post') ||
+        lowerText.includes('hits the bar') ||
+        lowerText.includes('hit the bar') ||
+        lowerText.includes('woodwork') ||
+        lowerText.includes('over the bar') ||
+        item.outcome === 'MISSED' ||
+        item.outcome === 'SAVED'
+      );
+
+    if (isMissed) {
+      let player = primaryAthlete;
+      if (!player && text) {
+        const penMatch =
+          text.match(/penalty (?:missed|saved|taken) by ([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.-]+?)(?:\.|$|\(|,)/i) ||
+          text.match(/([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.-]+?)\s*\([A-Za-z0-9\s.-]+\)\s*(?:misses|penalty saved|penalty missed)/i) ||
+          text.match(/missed penalty by ([A-ZÀ-ÖØ-öø-ÿ][a-zA-ZÀ-ÖØ-öø-ÿ\s.-]+?)(?:\.|$|\(|,)/i);
+        if (penMatch) player = penMatch[1].trim();
+      }
+
+      return {
+        id: item.id ? String(item.id) : undefined,
+        type: 'PENALTY_MISSED',
+        outcome: 'MISSED',
+        player: player || null,
+        teamId,
+        teamName,
+        minute: minute || 0,
+        period: item.period?.number || 1,
+        homeScore: matchContext.score?.home ?? 0,
+        awayScore: matchContext.score?.away ?? 0,
+        scoreAfterEvent: {
+          home: matchContext.score?.home ?? 0,
+          away: matchContext.score?.away ?? 0,
+        },
         text,
       };
     }

@@ -37,6 +37,7 @@ export const COUNTRY_FLAGS = {
   Switzerland: '🇨🇭',
   Austria: '🇦🇹',
   Poland: '🇵🇱',
+  Russia: '🇷🇺',
   Croatia: '🇭🇷',
   Serbia: '🇷🇸',
   Czechia: '🇨🇿',
@@ -198,6 +199,9 @@ const COUNTRY_ALIASES = {
   austrian: 'Austria',
   pol: 'Poland',
   poland: 'Poland',
+  rus: 'Russia',
+  russia: 'Russia',
+  russian: 'Russia',
   cro: 'Croatia',
   croatia: 'Croatia',
   srb: 'Serbia',
@@ -468,11 +472,21 @@ export function getCompetitionFlag(competition) {
   // PRIORITY 3: DOMESTIC LEAGUES & CUPS
   // ==========================================
 
+  // Russia (Russian Premier League, Russian Cup)
+  if (
+    s.startsWith('rus.') ||
+    s === 'russia.1' ||
+    n.includes('russian') ||
+    n.includes('russia')
+  ) {
+    return '🇷🇺';
+  }
+
   // 3A: England (Premier League, FA Cup, Carabao Cup, EFL Trophy, Championship)
   // Per prompt rule: England MUST be 🏴󠁧󠁢󠁥󠁮󠁧󠁿, NOT 🇬🇧
   if (
     s.startsWith('eng.') ||
-    n.includes('premier league') ||
+    (n.includes('premier league') && !n.includes('russian') && !n.includes('russia') && !s.startsWith('rus.') && !n.includes('ukrainian') && !s.startsWith('ukr.')) ||
     n.includes('fa cup') ||
     n.includes('carabao') ||
     n.includes('efl') ||
@@ -695,20 +709,70 @@ export function formatFixtureLine(kickoff, home, away, match) {
 }
 
 /**
+ * Resolves the status prefix for a match result line:
+ * - 'APEN' if the match entered a penalty shootout
+ * - 'AET' if the match entered extra time (without penalty shootout)
+ * - 'FT' if the match concluded in normal time without extra time
+ * @param {object} match
+ * @param {object} [event]
+ * @returns {'FT'|'AET'|'APEN'}
+ */
+export function getMatchResultPrefix(match, event) {
+  const m = match || {};
+  const ev = event || {};
+  const statusDesc = (m.status?.description || m.status?.detail || '').toLowerCase();
+  const statusName = (m.status?.name || '').toUpperCase();
+  const period = m.status?.period || ev.period || 0;
+
+  const hasShootout = Boolean(
+    m.shootout ||
+    ev.shootout ||
+    statusName.includes('PEN') ||
+    statusDesc.includes('shootout') ||
+    statusDesc.includes('penalties') ||
+    statusDesc.includes('pen.') ||
+    statusDesc.includes('(pen)') ||
+    period >= 5
+  );
+
+  if (hasShootout) {
+    return 'APEN';
+  }
+
+  const hasExtraTime = Boolean(
+    ev.type === 'AFTER_EXTRA_TIME_OR_SHOOTOUT' ||
+    ev.type === 'FULL_TIME_POST_ET' ||
+    statusName.includes('AET') ||
+    statusDesc.includes('aet') ||
+    statusDesc.includes('extra time') ||
+    period === 3 ||
+    period === 4
+  );
+
+  if (hasExtraTime) {
+    return 'AET';
+  }
+
+  return 'FT';
+}
+
+/**
  * Formats a result line with its country flag:
- * Example: "FT 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Arsenal 3 : 1 Manchester United"
+ * Example: "FT 🏴󠁧󠁢󠁥󠁮󠁧󠁿 Arsenal 3 : 1 Manchester United" or "AET ..." or "APEN ..."
  * @param {string} home home team display string
  * @param {string} away away team display string
  * @param {number|string} homeScore
  * @param {number|string} awayScore
  * @param {object} match match metadata
+ * @param {object} [event] optional event metadata
  * @returns {string}
  */
-export function formatResultLine(home, away, homeScore, awayScore, match) {
+export function formatResultLine(home, away, homeScore, awayScore, match, event) {
   const flag = getMatchFlag(match);
   const cleanHome = stripLeadingFlag(home);
   const cleanAway = stripLeadingFlag(away);
   const hScore = homeScore ?? 0;
   const aScore = awayScore ?? 0;
-  return `FT ${flag} ${cleanHome} ${hScore} : ${aScore} ${cleanAway}`;
+  const prefix = getMatchResultPrefix(match, event);
+  return `${prefix} ${flag} ${cleanHome} ${hScore} : ${aScore} ${cleanAway}`;
 }

@@ -2,7 +2,7 @@
 import { buildMatchHashtags } from '../utils/hashtags.js';
 import logger from '../utils/logger.js';
 import config from '../config/env.js';
-import { getMatchFlag } from '../utils/flags.js';
+import { getMatchFlag, getMatchResultPrefix } from '../utils/flags.js';
 import { generateDynamicFallbackInfo } from './aiCommentary.js';
 
 /**
@@ -16,6 +16,7 @@ export const WHITELISTED_EVENT_TYPES = new Set([
   'GOAL',
   'OWN_GOAL',
   'PENALTY_SCORED',
+  'PENALTY_MISSED',
   'RED_CARD',
   'GOAL_DISALLOWED',
   'HALF_TIME',
@@ -55,6 +56,7 @@ export const EVENT_EMOJIS = {
   GOAL: '⚽',
   OWN_GOAL: '😱',
   PENALTY_SCORED: '🥅',
+  PENALTY_MISSED: '❌',
   RED_CARD: '🟥',
   GOAL_DISALLOWED: '🚨',
   HALF_TIME: '⏱️',
@@ -369,6 +371,14 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
       // Note: Penalty goals strictly do not have an assist per soccer conventions
       break;
 
+    case 'PENALTY_MISSED':
+      eventHeader = '❌ PENALTY MISSED! DRAMA FROM THE SPOT! 😱🧤';
+      if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
+      if (event.player) {
+        detailLines.push(`❌ ${makeUnicodeBold(event.player)} (Penalty Missed)`);
+      }
+      break;
+
     case 'RED_CARD':
       eventHeader = '🟥 RED CARD! DRAMA IN THE MATCH! 🤯';
       if (!customInfoLine) eventLine = generateDynamicFallbackInfo(event, currentMatch);
@@ -431,13 +441,14 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
   const boldHeader = makeUnicodeBold(eventHeader);
 
   // User rule: Remove the headings from every event except
-  // Goal events, Goals disallowed events, Red card events, daily fixtures and results
+  // Goal events, Goals disallowed events, Red card events, penalty missed events, daily fixtures and results
   // Full-time events do not have headings per user instruction
   const isGoal = (type === 'GOAL' || type === 'OWN_GOAL' || type === 'PENALTY_SCORED');
   const isDisallowed = (type === 'GOAL_DISALLOWED' || event.status === 'DISALLOWED' || event.isDisallowed);
   const isRedCard = (type === 'RED_CARD');
+  const isPenaltyMissed = (type === 'PENALTY_MISSED');
   const isResult = (type === 'FULL_TIME' || type === 'FULLTIME' || type === 'FULL_TIME_PENDING_ET' || type === 'FT' || type === 'AFTER_EXTRA_TIME_OR_SHOOTOUT' || type === 'FULL_TIME_POST_ET');
-  const hasHeading = isGoal || isDisallowed || isRedCard;
+  const hasHeading = isGoal || isDisallowed || isRedCard || isPenaltyMissed;
 
   const isHalfTime = (type === 'HALF_TIME' || type === 'HALFTIME' || type === 'HT');
 
@@ -450,7 +461,8 @@ export function formatEventPost(event, currentMatch, customInfoLine) {
   if (isHalfTime) {
     sections.push(`HT ${home} ${homeScore} - ${awayScore} ${away}`);
   } else if (isResult) {
-    sections.push(`FT ${home} ${homeScore} - ${awayScore} ${away}`);
+    const prefix = getMatchResultPrefix(currentMatch, event);
+    sections.push(`${prefix} ${home} ${homeScore} - ${awayScore} ${away}`);
   } else {
     sections.push(`⏱️ ${clock}`);
     sections.push(`${home} ${homeScore} - ${awayScore} ${away}`);
@@ -527,7 +539,7 @@ export function isTopLeague(match) {
     slug === 'eng.1' ||
     slug === 'eng.fa' ||
     slug === 'eng.league_cup' ||
-    (name.includes('premier league') && !name.includes('women') && !name.includes('wsl') && !name.includes('egyptian') && !name.includes('cymru')) ||
+    (name.includes('premier league') && !name.includes('women') && !name.includes('wsl') && !name.includes('egyptian') && !name.includes('cymru') && !name.includes('russian') && !slug.startsWith('rus.')) ||
     name === 'english premier league' ||
     name === 'fa cup' ||
     name === 'carabao cup'
@@ -705,7 +717,8 @@ export function formatFixturesPost(matches, dateDisplay, options = {}) {
       const awayBold = makeUnicodeBold(m.awayName);
       const flag = getMatchFlag(m);
       if (isYesterday) {
-        lines.push(`FT ${flag} ${homeBold} ${m.score?.home ?? 0} : ${m.score?.away ?? 0} ${awayBold}`);
+        const prefix = getMatchResultPrefix(m);
+        lines.push(`${prefix} ${flag} ${homeBold} ${m.score?.home ?? 0} : ${m.score?.away ?? 0} ${awayBold}`);
       } else {
         lines.push(`${m.kickoffFormattedWAT || 'TBD'} ${flag} ${homeBold} vs ${awayBold}`);
       }
@@ -1104,19 +1117,29 @@ export function compareMatchState(prevRecord, currentMatch) {
       }
     }
 
-    // Handle Penalty events: only PENALTY_SCORED is allowed (and penalties have NO assists)
+    // Handle Penalty events: PENALTY_SCORED or PENALTY_MISSED (penalties have NO assists)
     if (ev.type === 'PENALTY') {
       if (ev.outcome === 'SCORED') {
         ev.type = 'PENALTY_SCORED';
         ev.assist = null;
+      } else if (ev.outcome === 'MISSED' || ev.outcome === 'SAVED') {
+        ev.type = 'PENALTY_MISSED';
+        ev.assist = null;
       } else {
-        continue;
+        const text = (ev.text || ev.description || '').toLowerCase();
+        if (text.includes('missed') || text.includes('saved')) {
+          ev.type = 'PENALTY_MISSED';
+          ev.assist = null;
+        } else {
+          continue;
+        }
       }
     }
 
     if (ev.type === 'GOAL') {
       const text = (ev.text || ev.description || '').toLowerCase();
       const typeText = (ev.typeText || '').toLowerCase();
+      const isMissed = text.includes('missed') || text.includes('saved') || typeText.includes('missed') || typeText.includes('saved');
       if (
         ev.penaltyKick === true ||
         typeText.includes('penalty') ||
@@ -1124,9 +1147,15 @@ export function compareMatchState(prevRecord, currentMatch) {
         text.includes('from the spot') ||
         text.includes('converts')
       ) {
-        ev.type = 'PENALTY_SCORED';
-        ev.outcome = 'SCORED';
-        ev.assist = null;
+        if (isMissed) {
+          ev.type = 'PENALTY_MISSED';
+          ev.outcome = 'MISSED';
+          ev.assist = null;
+        } else {
+          ev.type = 'PENALTY_SCORED';
+          ev.outcome = 'SCORED';
+          ev.assist = null;
+        }
       }
     }
 
@@ -1744,7 +1773,7 @@ export function compareMatchState(prevRecord, currentMatch) {
       period,
       teamId: ev.teamId || null,
       player: ev.player || null,
-      assist: type === 'PENALTY_SCORED' ? null : (ev.assist || null),
+      assist: (type === 'PENALTY_SCORED' || type === 'PENALTY_MISSED') ? null : (ev.assist || null),
       scoreAfterEvent,
       homeScore: scoreAfterEvent.home,
       awayScore: scoreAfterEvent.away,
